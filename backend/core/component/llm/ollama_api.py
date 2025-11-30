@@ -1,4 +1,4 @@
-import requests
+import aiohttp
 import json
 
 
@@ -7,23 +7,43 @@ class Client:
         self.model = model
         self.base_url = base_url
 
-    def generate(self, prompt: str, max_tokens: int = 512, temperature: float = 0.7):
-        url = f"{self.base_url}/api/generate"
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": True,
-            "options": {
-                "num_predict": max_tokens,
-                "temperature": temperature
+    async def generate(self, prompt: str | list, max_tokens: int = 512, temperature: float = 0.7):
+        if isinstance(prompt, list):
+            url = f"{self.base_url}/api/chat"
+            payload = {
+                "model": self.model,
+                "messages": prompt,
+                "stream": True,
+                "options": {
+                    "num_predict": max_tokens,
+                    "temperature": temperature
+                }
             }
-        }
-        with requests.post(url, json=payload, stream=True) as response:
-            response.raise_for_status()
-            for line in response.iter_lines():
-                if line:
-                    body = json.loads(line)
-                    token = body.get("response", "")
-                    yield token
-                    if body.get("done", False):
+        else:
+            url = f"{self.base_url}/api/generate"
+            payload = {
+                "model": self.model,
+                "prompt": prompt,
+                "stream": True,
+                "options": {
+                    "num_predict": max_tokens,
+                    "temperature": temperature
+                }
+            }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=payload) as response:
+                response.raise_for_status()
+                while True:
+                    line = await response.content.readline()
+                    if not line:
                         break
+                    if line:
+                        body = json.loads(line)
+                        if isinstance(prompt, list):
+                            token = body.get("message", {}).get("content", "")
+                        else:
+                            token = body.get("response", "")
+                        yield token
+                        if body.get("done", False):
+                            break

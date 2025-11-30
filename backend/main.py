@@ -10,7 +10,7 @@ app = FastAPI()
 # 日志配置，只需在主文件配置一次即可
 handler = colorlog.StreamHandler()
 handler.setFormatter(colorlog.ColoredFormatter(
-    '%(log_color)s%(asctime)s %(levelname)s %(message)s',
+    '%(log_color)s%(asctime)s %(levelname)s [%(pathname)s] %(message)s',
     log_colors={
         'DEBUG': 'cyan',
         'INFO': 'green',

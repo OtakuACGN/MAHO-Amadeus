@@ -17,6 +17,7 @@ async def test_ws():
             await websocket.send(msg)
             try:
                 receiving = False
+                audio_chunks = []  # 每次会话初始化音频分片缓冲区
                 while True:
                     response = await websocket.recv()
                     try:
@@ -31,17 +32,21 @@ async def test_ws():
                         elif obj.get("type") == "text" and receiving:
                             print("收到字符:", obj["data"])
                         elif obj.get("type") == "audio" and receiving:
-                            print(f"收到音频流，长度: {len(obj['data'])}")
-                            audio_bytes = base64.b64decode(obj["data"])
-                            # 播放音频
-                            try:
-                                rate, data = wavfile.read(io.BytesIO(audio_bytes))
-                                if data.dtype != np.float32:
-                                    data = data.astype(np.float32) / np.iinfo(data.dtype).max
-                                sd.play(data, rate)
-                                sd.wait()
-                            except Exception as e:
-                                print(f"音频播放失败: {e}")
+                            # 只处理 base64 音频分片
+                            audio_chunks.append(obj["data"])
+                            if obj.get("is_final", False):
+                                try:
+                                    audio_bytes = base64.b64decode("".join(audio_chunks))
+                                    rate, data = wavfile.read(io.BytesIO(audio_bytes))
+                                    if data.dtype != np.float32:
+                                        data = data.astype(np.float32) / np.iinfo(data.dtype).max
+                                    sd.play(data, rate)
+                                    sd.wait()
+                                except Exception as e:
+                                    print(f"音频播放失败: {e}")
+                                audio_chunks = []
+                            else:
+                                print(f"收到音频分片，长度: {len(obj['data'])}")
                         else:
                             print("收到未知类型:", obj)
                     except Exception:

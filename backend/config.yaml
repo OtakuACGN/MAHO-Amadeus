@@ -13,3 +13,10 @@ tts:
     prompt_language: "ja"
     default_text_language: "ja"
     speed: 1.2
+
+translator:
+  select: baidu_api
+  baidu_api:
+    appid: "20251129002508470"
+    appkey: "0zK0AZwp2hCmbiOoAtCI"
+
