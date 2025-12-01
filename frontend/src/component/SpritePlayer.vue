@@ -34,7 +34,11 @@ const props = defineProps({
   fps: { type: Number, default: 12 },         // 帧率
   width: { type: Number, required: true },    // 单帧宽度
   height: { type: Number, required: true },   // 单帧高度
-  totalFrames: { type: Number, required: true } // 总帧数
+  totalFrames: { type: Number, required: true }, // 总帧数
+  /**
+   * 循环模式：0=无限循环，1=播放一次停止
+   */
+  loop: { type: Number, default: 0 }
 })
 
 const frame = ref(0)
@@ -49,6 +53,11 @@ const frameY = computed(() => Math.floor(frame.value / props.columns))
 
 function play() {
   timer = setInterval(() => {
+    if (props.loop === 1 && frame.value >= actualTotalFrames.value - 1) {
+      clearInterval(timer)
+      timer = null
+      return
+    }
     frame.value = (frame.value + 1) % actualTotalFrames.value
   }, 1000 / props.fps)
 }
