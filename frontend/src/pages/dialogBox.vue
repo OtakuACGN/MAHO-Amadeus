@@ -68,14 +68,33 @@ async function processTextQueue() {
   }
 }
 
-window.addEventListener('resize', () => {
-  spriteSize.value = window.innerWidth * 0.025
-})
+// 打开和关闭遮罩，打开的时候等800ms是因为精灵图加载会卡顿，影响遮罩动画
+function openMask() {
+  showMask.value = true
+  setTimeout(() => {
+    isWaiting.value = false
+  }, 800)
+}
+
+function closeMask() {
+  showMask.value = false
+  isWaiting.value = true
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'h') {
+    if (showMask.value) {
+      closeMask();
+    } else {
+      openMask();
+    }
+  }
+});
 
 onMounted(() => {
   processTextQueue();
   setTimeout(() => {
-    showMask.value = true
+    openMask()
     updateCaret()
   }, 1000)
 })

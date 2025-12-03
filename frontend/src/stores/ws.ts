@@ -1,17 +1,18 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import config from '../config.json'
 
 export const useWsStore = defineStore('ws', () => {
   // 队列1：字符流（type: 'text'）
   const textQueue = ref<string[]>([])
   const audioQueue = ref<{ data: string, is_final: boolean }[]>([])
-  const isWaiting = ref(false)
-  const wsurl = ref('ws://localhost:8080/ws')
+  const isWaiting = ref(true)
+  const wsurl = ref(`ws://${config.ip}:8080/ws`)
   const wsStatus = ref('closed')
   let WS: WebSocket | null = null
   let reconnectTimer: number | null = null // 重连定时器
   const userName = ref(localStorage.getItem('username') || '未命名')
-  const amadeusName = ref('比屋定真帆')
+  const amadeusName = ref(config.amadeusName || '比屋定真帆')
   const currentName = ref(userName.value)
 
   function bindWebSocketEvents(ws: WebSocket) {

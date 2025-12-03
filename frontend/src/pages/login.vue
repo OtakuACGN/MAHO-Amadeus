@@ -1,4 +1,5 @@
 <template>
+  <audio ref="bgm" src="/login.mp3" autoplay loop></audio>
   <div class="login">
     <SpritePlayer class="logo" src="/sprite_logo.png" :rows="6" :columns="7" :fps="20" :width="logoSize"
       :height="logoSize" :totalFrames="38" :loop="1" />
@@ -23,18 +24,28 @@
 
 <script setup>
 import SpritePlayer from '../component/SpritePlayer.vue'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import config from '../config.json'
 
 const router = useRouter()
 const username = ref('')
 const password = ref('')
 const logoSize = ref(window.innerWidth * 0.4)
 const errorMsg = ref('')
+const bgm = ref(null)
+
+onMounted(() => {
+  document.addEventListener('click', () => {
+    if (bgm.value) {
+      bgm.value.play()
+    }
+  }, { once: true })
+})
 
 async function login() {
   try {
-    const response = await fetch('http://localhost:8080/api/login', {
+    const response = await fetch(`http://${config.ip}:8080/api/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -83,7 +94,7 @@ async function login() {
 
 .input-group {
   position: absolute;
-  top: 68%;
+  top: 70%;
   left: 47%;
   transform: translate(-50%, -50%);
   display: flex;
@@ -109,11 +120,11 @@ async function login() {
   padding: 0;
   cursor: pointer;
   outline: none;
-  transform: translateY(1.5vw);
+  transform: translateY(1.5em);
 }
 
 .btn-img {
-  width: 2.8vw;
+  width: 2.8em;
   /* 按需调整 */
   transition: transform 0.2s cubic-bezier(.4, 2, .3, 1);
 }
@@ -123,12 +134,12 @@ async function login() {
 }
 
 .amadeus-label {
-  transform: translateY(0.26vw);
-  margin-right: 1vw;
+  transform: translateY(0.26em);
+  margin-right: 1em;
   display: flex;
   align-items: center;
   font-family: 'Cinzel', 'Times New Roman', serif;
-  font-size: 1.8vw;
+  font-size: 1.8em;
   font-weight: 500;
   color: #f7c947;
   letter-spacing: 3px;
@@ -140,14 +151,14 @@ async function login() {
 }
 
 .amadeus-input {
-  width: 30vw;
-  height: 2.6vw;
+  width: 20em;
+  height: 1.6em;
   background: #000000;
   border: 2px solid #aaa9ab;
   color: #f7c947;
   padding: 0 1rem;
   font-family: 'Consolas', 'monospace';
-  font-size: 1.3rem;
+  font-size: 1.8em;;
   letter-spacing: 2px;
   outline: none;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
