@@ -8,3 +8,5 @@ requests
 argostranslate
 langdetect
 websockets
+openai
+httpx>=0.25.0

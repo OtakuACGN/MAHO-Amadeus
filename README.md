@@ -3,6 +3,10 @@
 ##  项目简介
 
 MAHO-Amadeus 灵感来源于《命运石之门》。目标是打造一个可扩展的虚拟角色交互框架，前端展示人物界面，用户可以与角色进行自然语言聊天。
+因为是全本地部署，所以对配置要求比较高，起码得有个4060显卡感觉吧，后面我会写网络接口，可以给配置比较低的电脑使用。
+登录的用户和密码都是: a，
+[视频教程](https://www.bilibili.com/video/BV1sx2rBzEzK)，
+doc文档里有扩展相关信息，
 
 本项目分为前端和后端和模型：
 - **前端**：基于 Vue 3，负责角色形象展示、聊天界面交互。
@@ -36,9 +40,9 @@ MAHO-Amadeus 灵感来源于《命运石之门》。目标是打造一个可扩�
    核心代码位于backend\core\component\
    
    *   **模块化切换**：通过修改各板块的 `select` 字段（如 `ollama_api`, `gpt_sovits_api`）一键切换不同服务提供商。
-   *   **LLM 配置**：默认支持 Ollama，可扩展接入 ChatGPT 等其他 API。
+   *   **LLM 配置**：默认支持 Ollama，可扩展接入 OpenAI 兼容 API（如阿里云 DashScope、通义千问、DeepSeek 等）。只需修改 `select` 为 `openai_api` 并配置相应参数即可。
    *   **TTS 配置**：支持 GPT-SoVITS，可配置参考音频、语速等。
-   *   **翻译配置**：支持多源切换（Ollama 本地大模型、百度 API、Argos 离线翻译）。
+   *   **翻译配置**：支持多源切换（Ollama 本地大模型、百度 API、Argos 离线翻译、OpenAI 兼容 API）。
    
 4. **启动服务**：
    ```bash
@@ -54,9 +58,9 @@ Modelfile 是用于配置和管理大语言模型（LLM）参数的文件，qwen
 2. 根据你的推理框架（如 Ollama、llama.cpp 等），在启动模型时指定 `Modelfile` 路径。例如，使用 Ollama 时可以运行：
 
   ```bash
-  ollama create maho-llm -f ./Modelfile
+  ollama create maho -f ./Modelfile
   ```
-3. 按照框架文档进一步配置和启动模型服务。
+3. 打开一个终端输入 ollama serve
 
 确保 `Modelfile` 中的参数与你的模型文件和硬件环境相匹配。具体配置说明可参考 [Ollama 官方文档](https://github.com/jmorganca/ollama/blob/main/docs/modelfile.md) 或相关推理框架的文档。
 
@@ -84,6 +88,7 @@ refer_wav_path记得改成你的本地路径
 本项目支持多种翻译方式，推荐使用 **本地 LLM (Ollama)** 以获得最佳的上下文理解能力，同时也支持 Argos（离线轻量）和 百度翻译 API。
 
 #### 方案 A：本地 LLM 翻译（推荐，需双 Ollama 实例）
+这个翻译是因为TTS我是用的日文训练，所以回答必须先转成日文再进入TTS。
 为了避免翻译模型与聊天模型抢占显存导致频繁加载，建议开启第二个 Ollama 服务专门用于翻译。
 
 1. **下载翻译模型**：
@@ -114,7 +119,30 @@ refer_wav_path记得改成你的本地路径
 2. 首次运行会自动下载翻译模型包。
 **实际上没有中文翻译到日文的模型包，不然我也不会特地去搞一个OLLAMA的模块。**
 
+#### 方案 C：OpenAI 兼容 API (支持国内外多种服务)
+项目支持 OpenAI 兼容协议，可无缝对接国内外各大模型服务商。
 
+1. **修改配置**：
+   修改 `backend/config.yaml` 中的 `translator` 部分：
+   ```yaml
+   translator:
+     select: openai_translator
+     openai_translator:
+       api_key: "你的API_KEY"
+       base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  # 阿里云 DashScope
+       model: "qwen-plus"
+   ```
+
+2. **推荐的服务商**：
+   - **阿里云 DashScope**：`base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"`，模型：`qwen-plus`
+   - **DeepSeek**：`base_url: "https://api.deepseek.com"`，模型：`deepseek-chat`
+   - **智谱AI**：`base_url: "https://open.bigmodel.cn/api/paas/v4/"`，模型：`glm-4`
+   - **OpenAI**：`base_url: "https://api.openai.com/v1"`，模型：`gpt-3.5-turbo`（需代理）
+
+3. **注意事项**：
+   - API Key 请妥善保管，不要泄露
+   - 国内服务商通常无需代理，速度更快
+   - 可在环境变量中设置 `OPENAI_API_KEY` 以提高安全性
 
 ---
 

@@ -1,8 +1,14 @@
 llm:
-  select: ollama_api
+  select: openai_api
   ollama_api:
     model: "maho"
     base_url: "http://localhost:11434"
+  openai_api:
+    # 示例：使用阿里云 DashScope (Qwen) 的 OpenAI 兼容接口
+    api_key: "sk-11fec913c5044b168c9ce228ac4378ee" 
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model: "qwen-plus"
+    timeout: 60
 
 tts:
   select: gpt_sovits_api
@@ -24,4 +30,8 @@ translator:
   ollama_translator: # 本地 Ollama LLM 翻译服务，使用小参数量模型追求速度
     model: "qwen2.5:0.5b"  # 小模型，推理速度快
     base_url: "http://localhost:11435"  # 使用独立端口，需单独启动一个 Ollama 实例
+  openai_translator:
+    api_key: ""
+    base_url: "https://api.openai.com/v1"
+    model: "gpt-3.5-turbo"
 
