@@ -1,5 +1,5 @@
 llm:
-  select: openai_api
+  select: ollama_api
   ollama_api:
     model: "maho"
     base_url: "http://localhost:11434"
@@ -11,7 +11,17 @@ llm:
     timeout: 60
 
 tts:
-  select: gpt_sovits_api
+  select: genie_tts_service  # 可选: gpt_sovits_api 或 genie_tts_service
+  # Genie TTS 配置（轻量化 ONNX 推理）
+  genie_tts_service:
+    character_name: "maho" # 随便起什么名字都行，主要是为了区分不同角色
+    onnx_model_dir: "backend/models/TTS-maho"
+    genie_data_dir: "backend/models/GenieData"
+    language: "ja"                            # ja/zh/en
+    reference_audio_path: "Modeltmp/TTS/WAV-MAHO/vocal_00_02_MAH0002.wav.reformatted.wav_10.wav_0000000000_0000171840.wav"
+    reference_audio_text: "そんなのわかっているわ。何度同じ話を繰り返せば気が済むの?"
+    auto_load: true
+  # GPT-SoVITS 配置（原有配置）
   gpt_sovits_api:
     base_url: "http://127.0.0.1:9880"
     refer_wav_path: "C:\\Users\\19045\\Desktop\\MAHO\\backend\\data\\TTS-audio\\激动.wav"
@@ -21,10 +31,10 @@ tts:
     speed: 1.2
 
 translator:
-  select: ollama_translator
+  select: baidu_api
   baidu_api:
-    appid: ""
-    appkey: ""
+    appid: "20251129002508470"
+    appkey: "0zK0AZwp2hCmbiOoAtCI"
   argos_api: # 本地部署的argos翻译服务，第一次使用需要先联网下载模型
     to_lang: "ja"  # 目标语言，默认日语
   ollama_translator: # 本地 Ollama LLM 翻译服务，使用小参数量模型追求速度

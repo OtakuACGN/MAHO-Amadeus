@@ -1,0 +1,62 @@
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import config from '../config.json'
+import { MahoWebSocket } from '../api/ws'
+
+export const useHomeStore = defineStore('home', () => {
+  // 队列1：字符流（type: 'text'）
+  const textQueue = ref<string[]>([])
+  const audioQueue = ref<{ data: string, is_final: boolean }[]>([])
+  const isWaiting = ref(true)
+  const wsStatus = ref('closed')
+  
+  const userName = ref(localStorage.getItem('username') || '未命名')
+  const amadeusName = ref(config.amadeusName || '比屋定真帆')
+  const currentName = ref(userName.value)
+
+  const wsClient = new MahoWebSocket()
+
+  // 注册回调函数
+  wsClient.on('open', () => {
+    wsStatus.value = 'connected'
+  })
+
+  wsClient.on('close', () => {
+    wsStatus.value = 'closed'
+  })
+
+  wsClient.on('text', (msg: any) => {
+    textQueue.value.push(msg.data)
+  })
+
+  wsClient.on('audio', (msg: any) => {
+    audioQueue.value.push({
+      data: msg.data,
+      is_final: msg.is_final
+    })
+  })
+
+  wsClient.on('start', () => {
+    textQueue.value = []
+    isWaiting.value = true
+    currentName.value = amadeusName.value
+  })
+
+  wsClient.on('end', () => {
+    currentName.value = userName.value
+    isWaiting.value = false
+  })
+
+  function send(data: any) {
+    wsClient.send(data)
+  }
+
+  return {
+    textQueue,
+    audioQueue,
+    isWaiting,
+    wsStatus,
+    currentName,
+    send
+  }
+})

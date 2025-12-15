@@ -66,6 +66,8 @@ Modelfile 是用于配置和管理大语言模型（LLM）参数的文件，qwen
 
 
 ### 🔊 TTS
+
+#### 方法一（不推荐，太大了）
 [模型和环境下载](https://www.modelscope.cn/models/bysq2006/maho-tts/files)
 在里面下载GPT-SoVITS-v2pro-20250604.zip
 然后解压到喜欢的位置，
@@ -83,6 +85,9 @@ cd 你的解压路径\GPT-SoVITS-v2pro-20250604
     base_url: "http://127.0.0.1:9880"
     refer_wav_path: "C:\\Users\\19045\\Desktop\\MAHO\\backend\\data\\TTS-audio\\激动.wav"
 refer_wav_path记得改成你的本地路径
+
+#### 方法二 (推荐，轻量化ONNX推理)
+参考 [GENIETTS接口说明.md](doc/GENIETTS接口说明.md)
 
 ### 🌍 翻译 (Translator)
 本项目支持多种翻译方式，推荐使用 **本地 LLM (Ollama)** 以获得最佳的上下文理解能力，同时也支持 Argos（离线轻量）和 百度翻译 API。
@@ -113,36 +118,7 @@ refer_wav_path记得改成你的本地路径
        base_url: "http://localhost:11435"
    ```
 
-#### 方案 B：Argos Translate (纯离线，无需显卡)
-如果不希望运行额外的 LLM，可以使用 Argos。
-1. 修改 `backend/config.yaml`，将 `select` 改为 `argos_api`。
-2. 首次运行会自动下载翻译模型包。
-**实际上没有中文翻译到日文的模型包，不然我也不会特地去搞一个OLLAMA的模块。**
-
-#### 方案 C：OpenAI 兼容 API (支持国内外多种服务)
-项目支持 OpenAI 兼容协议，可无缝对接国内外各大模型服务商。
-
-1. **修改配置**：
-   修改 `backend/config.yaml` 中的 `translator` 部分：
-   ```yaml
-   translator:
-     select: openai_translator
-     openai_translator:
-       api_key: "你的API_KEY"
-       base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  # 阿里云 DashScope
-       model: "qwen-plus"
-   ```
-
-2. **推荐的服务商**：
-   - **阿里云 DashScope**：`base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"`，模型：`qwen-plus`
-   - **DeepSeek**：`base_url: "https://api.deepseek.com"`，模型：`deepseek-chat`
-   - **智谱AI**：`base_url: "https://open.bigmodel.cn/api/paas/v4/"`，模型：`glm-4`
-   - **OpenAI**：`base_url: "https://api.openai.com/v1"`，模型：`gpt-3.5-turbo`（需代理）
-
-3. **注意事项**：
-   - API Key 请妥善保管，不要泄露
-   - 国内服务商通常无需代理，速度更快
-   - 可在环境变量中设置 `OPENAI_API_KEY` 以提高安全性
+其他翻译方法见 [翻译配置.md](doc/翻译配置.md)
 
 ---
 

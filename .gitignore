@@ -1,5 +1,5 @@
 # 忽略LLM-Maho模型文件夹和模型文件
-Model/
+Modeltmp/
 
 # -------------------
 # Python / Backend
@@ -20,6 +20,7 @@ htmlcov/
 dist/
 build/
 *.spec
+backend/models/*
 
 # -------------------
 # Node / Frontend (Global safeguards)

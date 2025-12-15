@@ -11,9 +11,9 @@
 import illustration from './illustration.vue'
 import dialogBox from './dialogBox.vue'
 import { onMounted, ref } from 'vue'
-import { useWsStore } from '@/stores/ws'
+import { useHomeStore } from '@/stores/home'
 import { storeToRefs } from 'pinia'
-const wsStore = useWsStore()
+const wsStore = useHomeStore()
 const { audioQueue, wsStatus } = storeToRefs(wsStore)
 const illustrationRef = ref(null)
 
