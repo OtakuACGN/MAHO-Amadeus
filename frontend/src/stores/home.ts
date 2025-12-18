@@ -10,6 +10,11 @@ export const useHomeStore = defineStore('home', () => {
   const isWaiting = ref(true)
   const wsStatus = ref('closed')
   
+  // 按钮状态
+  const buttonStates = ref({
+    video: false
+  })
+  
   const userName = ref(localStorage.getItem('username') || '未命名')
   const amadeusName = ref(config.amadeusName || '比屋定真帆')
   const currentName = ref(userName.value)
@@ -56,6 +61,7 @@ export const useHomeStore = defineStore('home', () => {
     audioQueue,
     isWaiting,
     wsStatus,
+    buttonStates,
     currentName,
     send
   }

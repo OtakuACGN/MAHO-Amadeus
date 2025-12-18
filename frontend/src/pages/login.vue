@@ -34,7 +34,7 @@ import loginButton from '@/assets/login/login_button.png'
 const router = useRouter()
 const username = ref('')
 const password = ref('')
-const logoSize = ref(window.innerWidth * 0.4)
+const logoSize = ref(640)
 const errorMsg = ref('')
 const bgm = ref(null)
 
@@ -165,6 +165,18 @@ async function login() {
   letter-spacing: 2px;
   outline: none;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+}
+
+@media (max-width: 768px) {
+  .amadeus-input {
+    width: 12em;
+  }
+}
+
+@media (max-width: 480px) {
+  .amadeus-input {
+    width: 8em;
+  }
 }
 
 .error {

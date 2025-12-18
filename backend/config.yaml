@@ -18,8 +18,8 @@ tts:
     onnx_model_dir: "backend/models/TTS-maho"
     genie_data_dir: "backend/models/GenieData"
     language: "ja"                            # ja/zh/en
-    reference_audio_path: "Modeltmp/TTS/WAV-MAHO/vocal_00_02_MAH0002.wav.reformatted.wav_10.wav_0000000000_0000171840.wav"
-    reference_audio_text: "そんなのわかっているわ。何度同じ話を繰り返せば気が済むの?"
+    reference_audio_path: "backend/data/TTS-audio/激动.wav"
+    reference_audio_text: "あら、あなた。"
     auto_load: true
   # GPT-SoVITS 配置（原有配置）
   gpt_sovits_api:
