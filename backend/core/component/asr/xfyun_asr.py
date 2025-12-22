@@ -104,8 +104,6 @@ class Client:
                 await self.start(self.on_result)
             else:
                 return
-        
-        if not self.ws: return
 
         audio_b64 = base64.b64encode(chunk).decode('utf-8')
         

@@ -24,7 +24,7 @@ tts:
   # GPT-SoVITS 配置（原有配置）
   gpt_sovits_api:
     base_url: "http://127.0.0.1:9880"
-    refer_wav_path: "C:\\Users\\19045\\Desktop\\MAHO\\backend\\data\\TTS-audio\\激动.wav"
+    refer_wav_path: "backend/data/TTS-audio/激动.wav"
     prompt_text: "あら、あなた。"
     prompt_language: "ja"
     default_text_language: "ja"
@@ -46,8 +46,9 @@ translator:
     model: "gpt-3.5-turbo"
 
 asr:
-  select: xfyun_asr
+  select: none # 可选: xfyun_asr 或 none (不启用 ASR)
   xfyun_asr:
     app_id: "YOUR_APP_ID"
     api_key: "YOUR_API_KEY"
     api_secret: "YOUR_API_SECRET"
+  none: {}

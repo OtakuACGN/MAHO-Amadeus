@@ -1,16 +1,11 @@
 <template>
   <div>
     <CenterRevealMask :visible="showMask">
-      <div class="bg-container">
-        <div class="bg-part left" :style="{ backgroundImage: `url(${meswinImg})` }"></div>
-        <div class="bg-part right" :style="{ backgroundImage: `url(${meswinImg})` }"></div>
-      </div>
+      <DialogBackground />
       <meswinName :name="currentName" class="Meswinname" />
       <textarea :readonly="isWaiting" name="dialog-textarea" id="dialog-textarea" class="dialog-textarea"
         v-model="dialogText" @keyup="sendTextToWS" ref="textareaRef"></textarea>
-      <SpritePlayer v-if="!isWaiting" :src="ringImg" :rows="12" :columns="5" :fps="45" :width="spriteSize"
-        :height="spriteSize" :totalFrames="60" :loop="0"
-        :style="{ position: 'absolute', left: caretX + 'px', top: caretY + 'px', pointerEvents: 'none', zIndex: 9999 }" />
+      <CaretSprite :textarea="textareaRef" :text="dialogText" :visible="!isWaiting" :size="44" />
     </CenterRevealMask>
     <SiriWave :visible="showSiriWave" class="Siri-wave"/>
   </div>
@@ -22,35 +17,20 @@ import { useVADStore } from '@/stores/vad';
 import { ref, onMounted, nextTick, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import CenterRevealMask from '@/component/CenterRevealMask.vue'
-import SpritePlayer from '@/component/SpritePlayer.vue'
-import meswinName from './meswinName.vue';
+import CaretSprite from '@/component/dialogBox/CaretSprite.vue'
+import DialogBackground from '@/component/dialogBox/DialogBackground.vue'
+import meswinName from '@/component/dialogBox/meswinName.vue';
 import SiriWave from './SiriWave.vue'
-// @ts-ignore
-import getCaretCoordinates from 'textarea-caret';
-import meswinImg from '@/assets/meswin/meswin.png'
-import ringImg from '@/assets/sprite/ring.png'
 
 const homeStore = useHomeStore()
 const vadStore = useVADStore()
 const { textQueue, isWaiting, currentName, buttonStates } = storeToRefs(homeStore)
 const { send } = homeStore
+
 const showMask = ref(false)
 const showSiriWave = ref(false)
-
 const dialogText = ref('');
-const caretX = ref(0)
-const caretY = ref(0)
 const textareaRef = ref()
-const spriteSize = ref(44) // 固定像素大小
-
-function updateCaret() {
-  const textarea = textareaRef.value;
-  if (!textarea) return
-  const pos = textarea.value.length; // 末尾位置
-  const coords = getCaretCoordinates(textarea, pos);
-  caretX.value = coords.left + 16
-  caretY.value = coords.top + 12
-}
 
 function sendTextToWS(e) {
   if (e.key === 'Enter' && !e.shiftKey && !isWaiting.value) {
@@ -65,7 +45,6 @@ function sendTextToWS(e) {
 
 async function processTextQueue() {
   while (true) {
-    updateCaret(); // 更新光标位置
     if (!isWaiting.value) {
       await new Promise(resolve => setTimeout(resolve, 100)); // 等待100ms再检查
       continue;
@@ -90,14 +69,12 @@ const handleKeyDown = (e) => {
 
 onMounted(() => {
   vadStore.initVAD()
-
   vadStore.onVoiceStart = () => {
     if (buttonStates.value.video) {
       showMask.value = false
       showSiriWave.value = true
     }
   }
-
   vadStore.onVoiceEnd = () => {
     if (buttonStates.value.video) {
       showMask.value = true
@@ -109,7 +86,6 @@ onMounted(() => {
   processTextQueue();
   setTimeout(() => {
     showMask.value = true
-    updateCaret()
   }, 1000)
 })
 
@@ -160,30 +136,5 @@ onUnmounted(() => {
   width: 0px;
   /* Chrome/Safari 隐藏滚动条 */
   background: transparent;
-}
-
-.bg-container {
-  position: relative;
-  /* 改回 relative 以撑开父容器宽度 */
-  width: 100%;
-  height: 256px;
-  /* 与 textarea 保持一致 */
-  display: flex;
-  pointer-events: none;
-}
-
-.bg-part {
-  width: 50%;
-  height: 100%;
-  background-repeat: no-repeat;
-  background-size: auto 100%;
-}
-
-.left {
-  background-position: left bottom;
-}
-
-.right {
-  background-position: right bottom;
 }
 </style>
