@@ -14,7 +14,7 @@
       :currentName="currentName"
       :videoMode="buttonStates.video"
       :thinkText="thinkText"
-      :isWaiting="isWaiting"
+      :isInputMode="!isWaiting"
       :textQueue="textQueue"
       @send="send"
     />
@@ -24,7 +24,7 @@
 
 <script setup>
 import illustration from './illustration.vue'
-import dialogBox from './dialogBox/dialogBox.vue'
+import dialogBox from '@/component/DialogBox/index.vue'
 import { onMounted } from 'vue'
 import { useHomeStore } from '@/stores/home'
 import { useVADStore } from '@/stores/vad'

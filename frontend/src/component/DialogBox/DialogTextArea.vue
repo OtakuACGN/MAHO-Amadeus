@@ -1,9 +1,9 @@
 <template>
   <div>
     <div v-if="thinkText.length > 1" id="think-div" class="dialog-textarea think-color">{{ thinkText }}</div>
-    <textarea :readonly="isWaiting" name="dialog-textarea" id="dialog-textarea" class="dialog-textarea"
+    <textarea :readonly="!isInputMode" name="dialog-textarea" id="dialog-textarea" class="dialog-textarea"
       v-model="dialogText" @keyup="sendTextToWS" ref="textareaRef"></textarea>
-    <CaretSprite :textarea="textareaRef" :text="dialogText" :visible="!isWaiting" :size="44" />
+    <CaretSprite :textarea="textareaRef" :text="dialogText" :visible="isInputMode" :size="44" />
   </div>
 </template>
 
@@ -16,9 +16,9 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  isWaiting: {
+  isInputMode: {
     type: Boolean,
-    default: false
+    default: true
   },
   textQueue: {
     type: Array,
@@ -32,7 +32,7 @@ const dialogText = ref('')
 const textareaRef = ref()
 
 function sendTextToWS(e) {
-  if (e.key === 'Enter' && !e.shiftKey && !props.isWaiting) {
+  if (e.key === 'Enter' && !e.shiftKey && props.isInputMode) {
     e.preventDefault(); // 阻止默认的换行行为
     const message = dialogText.value.trim();
     if (message) {
@@ -44,7 +44,7 @@ function sendTextToWS(e) {
 
 async function processTextQueue() {
   while (true) {
-    if (!props.isWaiting) {
+    if (props.isInputMode) {
       await new Promise(resolve => setTimeout(resolve, 100)); // 等待100ms再检查
       continue;
     }

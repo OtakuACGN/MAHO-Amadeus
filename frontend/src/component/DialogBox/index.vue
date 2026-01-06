@@ -5,7 +5,7 @@
       <meswinName :name="currentName" class="Meswinname" />
       <DialogTextArea 
         :thinkText="thinkText"
-        :isWaiting="isWaiting"
+        :isInputMode="isInputMode"
         :textQueue="textQueue"
         @send="handleSend"
       />
@@ -18,16 +18,16 @@
 import { useVADStore } from '@/stores/vad';
 import { ref, onMounted, onUnmounted } from 'vue'
 import CenterRevealMask from '@/component/CenterRevealMask.vue'
-import DialogBackground from '@/pages/home/dialogBox/contents/DialogBackground.vue'
-import meswinName from '@/pages/home/dialogBox/contents/meswinName.vue';
-import SiriWave from '@/pages/home/dialogBox/contents/SiriWave.vue'
-import DialogTextArea from '@/pages/home/dialogBox/contents/DialogTextArea.vue'
+import DialogBackground from './DialogBackground.vue'
+import meswinName from './meswinName.vue';
+import SiriWave from './SiriWave.vue'
+import DialogTextArea from './DialogTextArea.vue'
 
 const props = defineProps({
   currentName: String,
   videoMode: Boolean,
   thinkText: String,
-  isWaiting: Boolean,
+  isInputMode: Boolean,
   textQueue: Array
 })
 
