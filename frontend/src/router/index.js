@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import config from '../config.json'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,7 +27,7 @@ router.beforeEach(async (to, from, next) => {
     }
     // 通过 HTTP 接口验证 token
     try {
-      const response = await fetch('http://localhost:8080/api/verify', {
+      const response = await fetch(`http://${config.ip}:8080/api/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

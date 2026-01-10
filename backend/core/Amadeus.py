@@ -24,4 +24,10 @@ class BaseAmadeus:
         self.sentence_queue = asyncio.Queue()  # 句子队列
         self.user = {}  # 用户信息
         self.context_window = []  # 上下文窗口
+
+        # 如果配置中有系统提示词，则添加到上下文窗口第一条
+        system_prompt = self.config.get("llm", {}).get("system_prompt", "")
+        if system_prompt:
+            self.context_window.append({"role": "system", "content": system_prompt})
+            
         self.context_window_index = 0  # 上下文窗口索引，每次前端获取上下文窗口就更新这个索引

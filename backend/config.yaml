@@ -1,4 +1,6 @@
 llm:
+  # 系统提示词，若不为空则会在初始化时添加到上下文窗口第一条
+  system_prompt: ""
   select: ollama_api
   ollama_api:
     model: "maho"

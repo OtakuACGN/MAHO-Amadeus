@@ -8,6 +8,7 @@ import * as PIXI from 'pixi.js'
 import * as TWEEN from '@tweenjs/tween.js'
 import { useHomeStore } from '@/stores/home'
 import { storeToRefs } from 'pinia'
+import config from '@/config.json'
 
 const homeStore = useHomeStore()
 const { mouthOpen } = storeToRefs(homeStore)
@@ -66,7 +67,7 @@ onMounted(async () => {
     listeners = []
 
     // 加载 Cubism 4 模型
-    const model = await Live2DModel.from('/maho-l2d/maho.model3.json', {
+    const model = await Live2DModel.from(config.modelPath, {
       autoInteract: autoInteractEnabled
     })
     model.x = app.screen.width / 2
