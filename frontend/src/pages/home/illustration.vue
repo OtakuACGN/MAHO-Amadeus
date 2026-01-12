@@ -30,7 +30,7 @@ onMounted(async () => {
   document.querySelector('.pixi-container').appendChild(app.view)
 
   // 鼠标跟踪状态
-  let autoInteractEnabled = false
+  let autoInteractEnabled = true
 
   // tween动画组和定时器句柄
   let tweenGroup = null
