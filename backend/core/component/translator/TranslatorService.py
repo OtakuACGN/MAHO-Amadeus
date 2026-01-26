@@ -3,7 +3,7 @@ import importlib
 
 class Translator:
     """
-        Translator 服务类，对于不同的组件和BaseAmadeus提供的一个中间层。
+        Translator 服务类，对于不同的组件和ComponentManager提供的一个中间层。
         所有的组件必须实现一个类Client:
         class Client:
             def translate(self, text: str, from_lang: str, to_lang: str) -> str:

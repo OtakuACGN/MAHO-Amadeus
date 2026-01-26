@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from core.handler.ws_handler import WSHandler
-from core.Amadeus import BaseAmadeus
+from core.ComponentManager import ComponentManager
 from core.auth.login import AuthManager
 import uvicorn
 import logging
@@ -48,7 +48,6 @@ class LoginRequest(BaseModel):
 class VerifyRequest(BaseModel):
     token: str
 
-ws_handler = WSHandler()
 
 @app.post("/api/login")
 async def login(request: LoginRequest):
@@ -83,9 +82,11 @@ async def verify_token(request: VerifyRequest):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    # 为每个连接创建一个独立的 Amadeus 实例，确保用户隔离
-    Amadeus = BaseAmadeus()
-    await ws_handler.handle_ws(websocket, Amadeus)
+    # 为每个连接创建一个独立的 ComponentManager 实例，确保用户隔离
+    manager = ComponentManager()
+    # 为每个连接创建一个独立的 WSHandler 实例，存储连接相关的状态（如角色实例）
+    handler = WSHandler()
+    await handler.handle_ws(websocket, manager)
 
 if __name__ == "__main__":
     uvicorn.run(

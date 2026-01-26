@@ -34,9 +34,9 @@ class Client:
             text_language = self.default_text_language
 
         data = {
-            "refer_wav_path": self.refer_wav_path,
-            "prompt_text": self.prompt_text,
-            "prompt_language": self.prompt_language,
+            "refer_wav_path": kwargs.get("refer_wav_path", self.refer_wav_path) or kwargs.get("reference_audio_path", ""),
+            "prompt_text": kwargs.get("prompt_text", self.prompt_text) or kwargs.get("reference_audio_text", ""),
+            "prompt_language": kwargs.get("prompt_language", self.prompt_language),
             "text": text,
             "text_language": text_language,
             "speed": kwargs.get("speed", self.speed),

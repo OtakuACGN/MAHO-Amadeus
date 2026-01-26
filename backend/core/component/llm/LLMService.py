@@ -3,7 +3,7 @@ import importlib
 
 class LLM:
     """
-        LLM 服务类，对于不同的组件和BaseAmadeus提供的一个中间层。
+        LLM 服务类，对于不同的组件和ComponentManager提供的一个中间层。
         所有的组件必须实现一个类Client:
         class Client:
             def generate(self, prompt: str) -> str:
