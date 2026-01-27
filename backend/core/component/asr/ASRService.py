@@ -6,21 +6,20 @@ class ASR:
     """
     ASR 服务类 (中转层)
     
-    该类负责加载具体的 ASR 实现 (Provider)，并将调用透传。
-    
     【Provider 接口规范】
     任何接入的 ASR 模块 (如 xfyun_asr) 需实现以下方法:
     
-    1. async def start(self): 
+    1. def set_callback(self, callback):
+       - 设置回调函数。当 ASR 识别完成后，会调用此回调函数。
+       - callback: 异步回调函数，签名如 async def callback(text: str)
+    
+    2. async def start(self): 
        - (可选) 初始化资源，通常在首次 send_audio 时自动调用
        
-    2. async def send_audio(self, chunk: bytes, is_final: bool = False):
+    3. async def send_audio(self, chunk: bytes, is_final: bool = False):
        - 处理音频发送逻辑。
        - chunk: 音频数据的字节流
-       - is_final: 是否为本次语音的最后一帧。如果是，Provider 应发送结束信号。
-       
-    3. def get_result(self) -> str:
-       - 返回当前缓冲区内的识别文本，并清空缓冲区。
+       - is_final: 是否为本次语音的最后一帧。如果是，Provider 应发送结束信号并触发回调。
     
     """
     def __init__(self, config: dict) -> None:
@@ -48,6 +47,11 @@ class ASR:
         asr_config = config.get(select, {})
         self.provider = client_class(**asr_config)
 
+    def set_callback(self, callback):
+        """传递回调函数给 Provider"""
+        if self.provider and hasattr(self.provider, 'set_callback'):
+            self.provider.set_callback(callback)
+
     async def start(self):
         """
         启动 ASR 会话 (兼容接口)
@@ -64,12 +68,3 @@ class ASR:
         """
         if self.provider:
             await self.provider.send_audio(chunk, is_final=is_final)
-
-    def get_result(self) -> str:
-        """
-        从 Provider 获取并清空当前的识别结果
-        """
-        if self.provider and hasattr(self.provider, 'get_result'):
-            return self.provider.get_result()
-        return "" 
-

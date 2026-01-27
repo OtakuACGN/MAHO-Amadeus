@@ -17,10 +17,16 @@ class Client:
         self.api_secret = api_secret
         self.ws = None
         
-        # 内部缓冲区
+        # 回调函数
+        self.callback = None
+        
+        # 状态 0: first, 1: continue, 2: last
+        self.status = 0
         self.text_buffer = ""
-        # 记录是否为当前连接的每一句话的第一帧，用于发送 status=0
-        self.is_first_frame = True
+
+    def set_callback(self, callback):
+        """设置回调函数"""
+        self.callback = callback
 
     def create_url(self):
         url = 'wss://iat.cn-huabei-1.xf-yun.com/v1'
@@ -50,8 +56,8 @@ class Client:
         ws_url = self.create_url()
         try:
             self.ws = await websockets.connect(ws_url)
-            self.is_first_frame = True # 连接建立后，下一帧肯定是第一帧
-            # 启动监听任务
+            self.status = 0
+            self.text_buffer = ""
             asyncio.create_task(self._listen())
             logging.info("ASR (Xfyun) 连接已建立")
         except Exception as e:
@@ -65,7 +71,7 @@ class Client:
                 data = json.loads(message)
                 code = data["header"]["code"]
                 if code != 0:
-                    logging.error(f"ASR Error: {code}")
+                    logging.error(f"ASR Error: {code} - {data['header'].get('message', '')}")
                     await self.close()
                     break
                 
@@ -83,13 +89,18 @@ class Client:
                         self.text_buffer += partial_text
                 
                 if data["header"]["status"] == 2:
-                    logging.info("ASR 会话结束 (Remote)")
+                    logging.info(f"ASR 会话结束 (Remote), 结果: {self.text_buffer}")
+                    
+                    # 收到服务端结束信号，触发回调
+                    if self.text_buffer and self.callback:
+                        # 异步执行回调，只传递文本结果
+                        asyncio.create_task(self.callback(self.text_buffer))
+
                     # 服务端确认结束，关闭连接
                     await self.close()
                     break
         except Exception as e:
-            # 正常的关闭连接可能会引发异常，忽略
-            # logging.error(f"ASR Listen Loop Ended: {e}")
+            # 正常关闭或网络波动
             pass
         finally:
             await self.close()
@@ -102,63 +113,59 @@ class Client:
             except:
                 pass
             self.ws = None
+            self.status = 0
 
     async def send_audio(self, chunk, is_final=False):
         """
         发送音频分片
         :param chunk: 音频数据
-        :param is_final: 是否是最后一帧，如果是，将发送 status=2 的结束包
+        :param is_final: 是否是最后一帧
         """
         if not self.ws:
             await self.start()
             if not self.ws:
                 return # 连接失败直接返回
 
-        audio_b64 = base64.b64encode(chunk).decode('utf-8')
-        
-        # 确定当前帧的状态
-        # status 0: 第一帧 (带参数)
-        # status 1: 中间帧
-        # status 2: 最后一帧
-        status = 1
-        if self.is_first_frame:
-            status = 0
-            self.is_first_frame = False
-        
-        if is_final:
-            status = 2
-
-        # 构造数据包
-        data = {}
-        if status == 0:
-             data = {
-                "header": {"status": 0, "app_id": self.app_id},
-                "parameter": {
-                    "iat": {
-                        "domain": "slm", "language": "mul_cn", "accent": "mandarin",
-                        "result": {"encoding": "utf8", "compress": "raw", "format": "json"}
-                    }
-                },
-                "payload": {"audio": {"audio": audio_b64, "sample_rate": 16000, "encoding": "raw"}}
-            }
-        else:
-             data = {
-                "header": {"status": status, "app_id": self.app_id},
-                "payload": {"audio": {"audio": audio_b64, "sample_rate": 16000, "encoding": "raw"}}
-            }
+        # 1. 发送数据 (如果有)
+        if chunk:
+            audio_b64 = base64.b64encode(chunk).decode('utf-8')
             
-        try:
-            await self.ws.send(json.dumps(data))
-        except Exception as e:
-            logging.error(f"ASR 发送音频失败: {e}")
-            await self.close()
+            data = {}
+            if self.status == 0:
+                # 第一帧
+                data = {
+                    "header": {"status": 0, "app_id": self.app_id},
+                    "parameter": {
+                        "iat": {
+                            "domain": "slm", "language": "mul_cn", "accent": "mandarin",
+                            "result": {"encoding": "utf8", "compress": "raw", "format": "json"}
+                        }
+                    },
+                    "payload": {"audio": {"audio": audio_b64, "sample_rate": 16000, "encoding": "raw"}}
+                }
+                self.status = 1
+            else:
+                # 中间帧
+                data = {
+                    "header": {"status": 1, "app_id": self.app_id},
+                    "payload": {"audio": {"audio": audio_b64, "sample_rate": 16000, "encoding": "raw"}}
+                }
+                
+            try:
+                await self.ws.send(json.dumps(data))
+            except Exception as e:
+                logging.error(f"ASR 发送音频失败: {e}")
+                await self.close()
+                return
 
-    # finish_audio 方法已被整合进 send_audio(is_final=True)，此处移除或留空
-    async def finish_audio(self):
-        pass
-
-    def get_result(self):
-        """获取缓冲区内容并清空"""
-        res = self.text_buffer
-        self.text_buffer = ""
-        return res
+        # 2. 如果是最后一帧，发送结束包 (status=2, empty audio)
+        if is_final:
+            data_end = {
+                "header": {"status": 2, "app_id": self.app_id},
+                "payload": {"audio": {"audio": "", "sample_rate": 16000, "encoding": "raw"}}
+            }
+            try:
+                await self.ws.send(json.dumps(data_end))
+            except Exception as e:
+                logging.error(f"ASR 发送结束包失败: {e}")
+                await self.close()

@@ -7,24 +7,23 @@ from core.auth.login import AuthManager
 import uvicorn
 import logging
 import colorlog
+import sys
 
-# 日志配置，只需在主文件配置一次即可
+# Windows 平台尝试初始化 colorama 以避免 OSError
+if sys.platform == "win32":
+    try:
+        import colorama
+        colorama.init()
+    except ImportError:
+        pass
+
+# 日志配置
 handler = colorlog.StreamHandler()
 handler.setFormatter(colorlog.ColoredFormatter(
     '%(log_color)s%(asctime)s %(levelname)s [%(pathname)s] %(message)s',
-    log_colors={
-        'DEBUG': 'cyan',
-        'INFO': 'green',
-        'WARNING': 'yellow',
-        'ERROR': 'red',
-        'CRITICAL': 'red,bg_white',
-    }
+    log_colors={'DEBUG': 'cyan', 'INFO': 'green', 'WARNING': 'yellow', 'ERROR': 'red', 'CRITICAL': 'red,bg_white'}
 ))
-
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[handler]
-)
+logging.basicConfig(level=logging.INFO, handlers=[handler])
 
 app = FastAPI()
 
