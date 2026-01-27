@@ -9,59 +9,74 @@
       </div>
       <!-- 可以在这里继续添加更多按钮 -->
     </div>
-    <dialogBox 
-      class="dialog" 
-      :currentName="currentName"
-      :videoMode="buttonStates.video"
-      :thinkText="thinkText"
-      :isInputMode="!isWaiting"
-      :textQueue="textQueue"
-      @send="send"
-    />
-    <illustration class="illustrat" />
+    <!-- 注意DialogBox直接引用了useGameStore，因为这样子的话，可以避免很多父子传递的问题 -->
+    <DialogBox class="dialog" />
+    <SiriWave :visible="app.showSiriWave" class="Siri-wave"/>
+    <CharacterStage class="stage" />
   </div>
 </template>
 
 <script setup>
-import illustration from './illustration.vue'
-import dialogBox from '@/component/DialogBox/index.vue'
+import CharacterStage from '@/component/character/CharacterStage.vue'
+import DialogBox from './DialogBox.vue'
+import SiriWave from '@/component/DialogBox/SiriWave.vue'
 import { onMounted } from 'vue'
-import { useHomeStore } from '@/stores/home'
+import { useGameStore } from '@/stores/game'
 import { useVADStore } from '@/stores/vad'
 import { storeToRefs } from 'pinia'
 import { useLipSyncAudio } from '@/composables/useLipSyncAudio'
 
-const homeStore = useHomeStore()
+const gameStore = useGameStore()
 const vadStore = useVADStore()
-const { audioQueue, wsStatus, buttonStates, textQueue, thinkText, isWaiting, currentName } = storeToRefs(homeStore)
-const { send } = homeStore
+
+// 使用拆分后的 Store 引用
+const { app, ws, audio } = gameStore
+const { wsStatus } = storeToRefs(ws)
+const { buttonStates } = storeToRefs(app)
+const { audioQueue } = storeToRefs(audio)
+
 const { getAudioContext } = vadStore
 
 const { processAudioQueue } = useLipSyncAudio(
   audioQueue,
   getAudioContext,
   (value) => {
-    homeStore.mouthOpen = value
+    audio.mouthOpen = value
   }
 )
 
 onMounted(() => {
+  vadStore.initVAD()
+  vadStore.onVoiceStart = () => {
+    if (buttonStates.value.video) {
+      app.showDialog = false
+      app.showSiriWave = true
+    }
+  }
+  vadStore.onVoiceEnd = () => {
+    if (buttonStates.value.video) {
+      app.showDialog = true
+      app.showSiriWave = false
+    }
+  }
   processAudioQueue()
 })
 </script>
 
 <style scoped>
-.illustrat {
+.stage {
   position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
 }
 
 .home-page {
-  background-image: url('/bg.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   min-height: 100vh;
   position: relative;
+  overflow: hidden;
 }
 
 .button-sidebar {
@@ -107,7 +122,7 @@ onMounted(() => {
   text-align: center;
   color: #e6a23c;
   font-family: 'Microsoft YaHei', 'SimHei', '黑体', 'STHeiti', sans-serif;
-  font-size: 2.1vw;
+  font-size: 2.1em;
   text-shadow: 2px 2px 6px #000, 0 0 1px #fff;
   padding: 0.5em 0;
   border: none;
@@ -125,5 +140,13 @@ onMounted(() => {
   left: 0;
   width: 100%;
   z-index: 2;
+}
+
+.Siri-wave {
+  position: absolute;
+  bottom: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
 }
 </style>

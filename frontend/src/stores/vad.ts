@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useHomeStore } from './home'
+import { useWSStore } from './modules/ws'
+import { useAppStore } from './modules/app'
 // @ts-ignore
-import VAD from '../util/vad.js'
+import VAD from '@/util/vad'
 
 export const useVADStore = defineStore('vad', () => {
-  const homeStore = useHomeStore()
+  const wsStore = useWSStore()
+  const appStore = useAppStore()
   
   const isVADInitialized = ref(false)
   let isSpeaking = false
@@ -41,7 +43,7 @@ export const useVADStore = defineStore('vad', () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const ctx = getAudioContext()
-      console.log('VAD: AudioContext 采样率:', ctx.sampleRate)
+      console.log('VAD: AudioContext 采样率', ctx.sampleRate)
       const source = ctx.createMediaStreamSource(stream)
 
       // 创建音频处理器用于获取原始 PCM 数据
@@ -50,7 +52,7 @@ export const useVADStore = defineStore('vad', () => {
       processor.connect(ctx.destination)
 
       processor.onaudioprocess = (e) => {
-        if (isSpeaking && homeStore.buttonStates.video) {
+        if (isSpeaking && appStore.buttonStates.video) {
           const inputData = e.inputBuffer.getChannelData(0)
           
           // 转换为 16-bit PCM
@@ -68,7 +70,7 @@ export const useVADStore = defineStore('vad', () => {
           }
           const base64 = btoa(binary)
 
-          homeStore.send({
+          wsStore.send({
             type: 'audio',
             data: base64,
             is_final: false,
@@ -81,20 +83,20 @@ export const useVADStore = defineStore('vad', () => {
       new (VAD as any)({
         source: source,
         voice_start: () => {
-          if (homeStore.buttonStates.video) {
+          if (appStore.buttonStates.video) {
             isSpeaking = true
             console.log('VAD: 检测到语音开始')
-            homeStore.send({ type: 'interrupt' })
+            wsStore.send({ type: 'interrupt' })
             onVoiceStart.value?.()
           }
         },
         voice_stop: () => {
-          if (homeStore.buttonStates.video) {
+          if (appStore.buttonStates.video) {
             isSpeaking = false
             console.log('VAD: 检测到语音结束')
 
             // 发送结束标志
-            homeStore.send({
+            wsStore.send({
               type: 'audio',
               data: '',
               is_final: true,
