@@ -4,6 +4,7 @@ import { useWSStore } from './modules/ws'
 import { useCharacterStore } from './modules/character'
 import { useChatStore } from './modules/chat'
 import { useAudioStore } from './modules/audio'
+import { useStageStore } from './modules/stage'
 
 /**
  * 这是一个中转器 Store，它将各个领域的 Store 聚合在一起。
@@ -15,6 +16,7 @@ export const useGameStore = defineStore('game', () => {
     ws: useWSStore(),
     char: useCharacterStore(),
     chat: useChatStore(),
-    audio: useAudioStore()
+    audio: useAudioStore(),
+    stage: useStageStore()
   }
 })

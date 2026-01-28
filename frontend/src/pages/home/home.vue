@@ -7,24 +7,23 @@
         title="视频通话">
         <img src="@/assets/videocall.png" alt="video" />
       </div>
-      <!-- 可以在这里继续添加更多按钮 -->
     </div>
     <!-- 注意DialogBox直接引用了useGameStore，因为这样子的话，可以避免很多父子传递的问题 -->
     <DialogBox class="dialog" />
     <SiriWave :visible="app.showSiriWave" class="Siri-wave"/>
-    <CharacterStage class="stage" />
+    <GameStage class="stage" />
   </div>
 </template>
 
 <script setup>
-import CharacterStage from '@/component/character/CharacterStage.vue'
-import DialogBox from './DialogBox.vue'
-import SiriWave from '@/component/DialogBox/SiriWave.vue'
+import GameStage from './GameStage/index.vue'
+import DialogBox from './DialogBox/index.vue'
+import SiriWave from './SiriWave.vue'
 import { onMounted } from 'vue'
 import { useGameStore } from '@/stores/game'
 import { useVADStore } from '@/stores/vad'
 import { storeToRefs } from 'pinia'
-import { useLipSyncAudio } from '@/composables/useLipSyncAudio'
+import { useLipSyncAudio } from '@/pages/home/useLipSyncAudio'
 
 const gameStore = useGameStore()
 const vadStore = useVADStore()

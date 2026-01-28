@@ -3,11 +3,12 @@
     <CenterRevealMask :visible="app.showDialog">
       <DialogBackground />
       <meswinName :name="chat.currentName" class="Meswinname" />
+      <!-- DialogTextArea是主要的对话输入和显示组件，其他的一般都是装饰性的东西 -->
       <DialogTextArea 
         :thinkText="chat.thinkText"
         :isInputMode="!app.isWaiting"
         :textQueue="chat.textQueue"
-        @send="app.send"
+        @send="ws.send"
       />
     </CenterRevealMask>
   </div>
@@ -17,12 +18,12 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useGameStore } from '@/stores/game'
 import CenterRevealMask from '@/component/CenterRevealMask.vue'
-import DialogBackground from '@/component/DialogBox/DialogBackground.vue'
-import meswinName from '@/component/DialogBox/meswinName.vue';
-import DialogTextArea from '@/component/DialogBox/DialogTextArea.vue'
+import DialogBackground from './DialogBackground.vue'
+import meswinName from './meswinName.vue';
+import DialogTextArea from './DialogTextArea/index.vue'
 
 const gameStore = useGameStore()
-const { app, chat } = gameStore
+const { app, chat, ws } = gameStore
 
 // 是否显示/隐藏对话框
 const handleKeyDown = (e) => {

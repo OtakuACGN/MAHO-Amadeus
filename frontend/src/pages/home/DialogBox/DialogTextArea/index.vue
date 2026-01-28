@@ -2,7 +2,7 @@
   <div>
     <div v-if="thinkText.length > 1" id="think-div" class="dialog-textarea think-color">{{ thinkText }}</div>
     <textarea :readonly="!isInputMode" name="dialog-textarea" id="dialog-textarea" class="dialog-textarea"
-      v-model="dialogText" @keyup="sendTextToWS" ref="textareaRef"></textarea>
+      v-model="dialogText" @keydown.enter.prevent="sendTextToWS" ref="textareaRef"></textarea>
     <CaretSprite :textarea="textareaRef" :text="dialogText" :visible="isInputMode" :size="44" />
   </div>
 </template>
@@ -32,8 +32,7 @@ const dialogText = ref('')
 const textareaRef = ref()
 
 function sendTextToWS(e) {
-  if (e.key === 'Enter' && !e.shiftKey && props.isInputMode) {
-    e.preventDefault(); // 阻止默认的换行行为
+  if (!e.shiftKey && props.isInputMode) {
     const message = dialogText.value.trim();
     if (message) {
       emit('send', { type: 'chat', data: message, token: localStorage.getItem('token') });
