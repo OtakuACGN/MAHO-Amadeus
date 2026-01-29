@@ -1,14 +1,72 @@
 ﻿import logging
+import json
+import asyncio
 from typing import List, Dict, Optional
 from core.Script import Script
 
 class Director:
     """
     导演类，负责统筹剧本演进、维护公共记忆，并进行意图识别和任务分发。
+    同时负责具体的演出编排（Orchestration），决定什么时候向前端发送哪个角色的输出。
     """
     def __init__(self, manager):
         self.script = Script(world_view=manager.config.get("world_view", "这是一个虚拟人物互动的世界。"))
         self.intent_llm = manager.llm  # 默认使用配置中的 LLM 进行意图识别
+        # 用于控制演出节奏的“继续”信号
+        # 当一个角色演出完毕后，由于需要等待前端点击，演出线程会 await next_step.wait()
+        self.next_step = asyncio.Event()
+
+    async def run_orchestrator(self, websocket, characters: Dict):
+        """
+        演出编排循环：
+        不断从剧本的台词队列中提取任务，并将对应角色的输出流转发给前端。
+        """
+        while True:
+            try:
+                # 1. 从剧本领号 (等待下一位该说话的角色)
+                line_info = await self.script.line_queue.get()
+                char_name = line_info.get("character")
+                character = characters.get(char_name)
+                
+                if not character:
+                    logging.warning(f"[Director] 调度器收到未知角色: {char_name}")
+                    self.script.line_queue.task_done()
+                    continue
+
+                logging.info(f"[Director] --- 开始播放演出: {char_name} ---")
+
+                # 2. 独占式转发该角色的 output_queue 直到收到 end 信号
+                while True:
+                    item = await character.output_queue.get()
+                    
+                    try:
+                        await websocket.send_text(json.dumps(item))
+                    except Exception as e:
+                        logging.error(f"[Director] 消息发送失败: {e}")
+                        break
+
+                    character.output_queue.task_done()
+
+                    # 3. 如果是 end 信号，表示该角色本次发言结束
+                    if item.get("type") == "end":
+                        logging.info(f"[Director] --- 角色 {char_name} 发言结束，等待前端点击 'Next' ---")
+                        # 4. 关键：暂停，等待前端信号
+                        self.next_step.clear()
+                        await self.next_step.wait()
+                        break
+                
+                self.script.line_queue.task_done()
+                
+                # 如果队列空了，说明本轮所有角色的戏都演完了
+                if self.script.line_queue.empty():
+                     await websocket.send_text(json.dumps({"type": "finish"}))
+
+            except asyncio.CancelledError:
+                logging.info("[Director] 演出编排器任务已取消")
+                break
+            except Exception as e:
+                logging.error(f"[Director] 演出编排器异常: {e}")
+                await asyncio.sleep(1)
 
     async def get_target_characters(self, user_input: str, character_names: List[str]) -> str:
         """
@@ -23,8 +81,10 @@ class Director:
             f"请从列表中选择应当回复的角色名称（只能选择一个），或者返回 'all' 表示广播给所有人："
         )
         
-        # 调用 LLM
-        response = await self.intent_llm.generate(prompt)
+        # 调用 LLM，收集异步生成器的完整结果
+        response = ""
+        async for chunk in self.intent_llm.generate(prompt):
+            response += chunk
         
         # 处理 AI 返回的字符串
         if not response:
@@ -42,12 +102,19 @@ class Director:
 
     async def dispatch_intent(self, user_input: str, character_names: List[str]) -> List[Dict]:
         """
-        根据用户输入，生成分发指令。
+        根据用户输入，生成分发指令，并直接添加到剧本的台词队列。
         返回格式: [{"character": "name1", "text": "user_input"}, ...]
         """
         target = await self.get_target_characters(user_input, character_names)
         
+        instructions = []
         if target == "all":
-            return [{"character": name, "text": user_input} for name in character_names]
+            instructions = [{"character": name, "text": user_input} for name in character_names]
         else:
-            return [{"character": target, "text": user_input}]
+            instructions = [{"character": target, "text": user_input}]
+        
+        # 直接将角色添加到剧本的台词队列
+        for cmd in instructions:
+            await self.script.register_line(cmd["character"])
+        
+        return instructions

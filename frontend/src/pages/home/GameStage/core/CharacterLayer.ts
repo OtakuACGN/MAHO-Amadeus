@@ -53,6 +53,19 @@ export class CharacterLayer {
     }
   }
 
+  /**
+   * 更新口型同步
+   */
+  public updateLipSync(characterId: string | null, value: number) {
+    if (!characterId) return
+    const model = this.models.get(characterId)
+    if (!model) return
+
+    // 常见的 Live2D 嘴巴开口参数名
+    const PARAM_MOUTH_OPEN_Y = 'ParamMouthOpenY'
+    model.internalModel.coreModel.setParameterValueById(PARAM_MOUTH_OPEN_Y, value)
+  }
+
   private startBlinking(model: any) {
     const PARAM_EYE_L_OPEN = 'ParamEyeROpen'
     const PARAM_EYE_R_OPEN = 'ParamEyeROpen2'

@@ -9,9 +9,10 @@ import { storeToRefs } from 'pinia'
 import { StageManager } from './core/StageManager'
 
 const gameStore = useGameStore()
-const { char, stage } = gameStore
+const { char, stage, audio } = gameStore
 const { activeCharacters } = storeToRefs(char)
 const { background } = storeToRefs(stage)
+const { mouthOpen, speakingCharacterId } = storeToRefs(audio)
 
 const stageContainer = ref(null)
 let stageManager = null
@@ -46,6 +47,13 @@ onMounted(async () => {
     background.value, 
     stageManager.screen
   ), { deep: true })
+
+  // 监听口型数值同步到 Live2D
+  watch(mouthOpen, (val) => {
+    if (stageManager) {
+      stageManager.characterLayer.updateLipSync(speakingCharacterId.value, val)
+    }
+  })
 
   window.addEventListener('resize', handleResize)
 })

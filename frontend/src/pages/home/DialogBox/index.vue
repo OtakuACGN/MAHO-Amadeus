@@ -1,15 +1,18 @@
 <template>
   <div>
     <CenterRevealMask :visible="app.showDialog">
-      <DialogBackground />
-      <meswinName :name="chat.currentName" class="Meswinname" />
-      <!-- DialogTextArea是主要的对话输入和显示组件，其他的一般都是装饰性的东西 -->
-      <DialogTextArea 
-        :thinkText="chat.thinkText"
-        :isInputMode="!app.isWaiting"
-        :textQueue="chat.textQueue"
-        @send="ws.send"
-      />
+      <div class="dialog-container" :class="{ 'speaking-mode': dialog.isWaiting }">
+        <DialogBackground />
+        <meswinName :name="dialog.currentName" class="Meswinname" />
+        <!-- DialogTextArea是主要的对话输入和显示组件，其他的一般都是装饰性的东西 -->
+        <DialogTextArea 
+          :thinkText="dialog.thinkText"
+          :isInputMode="!dialog.isWaiting"
+          :isPaused="dialog.isPaused"
+          :textQueue="dialog.textQueue"
+          @send="ws.send"
+        />
+      </div>
     </CenterRevealMask>
   </div>
 </template>
@@ -23,7 +26,7 @@ import meswinName from './meswinName.vue';
 import DialogTextArea from './DialogTextArea/index.vue'
 
 const gameStore = useGameStore()
-const { app, chat, ws } = gameStore
+const { app, dialog, ws } = gameStore
 
 // 是否显示/隐藏对话框
 const handleKeyDown = (e) => {
@@ -45,6 +48,14 @@ onUnmounted(() => {
 </script>
 
 <style>
+.dialog-container {
+    transition: all 0.5s ease;
+}
+
+.speaking-mode {
+    filter: drop-shadow(0 0 10px rgba(255, 153, 0, 0.4));
+}
+
 .Meswinname {
   position: absolute;
   bottom: 40px;

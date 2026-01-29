@@ -1,16 +1,16 @@
 <template>
-  <div class="home-page">
+  <div class="home-page" @click="handleGlobalClick">
     <div v-if="wsStatus !== 'connected'" class="ws-status-tip">WebSocket连接失效，正在尝试连接...</div>
     <!-- 左上角按钮区 -->
     <div class="button-sidebar">
-      <div class="side-button" :class="{ active: buttonStates.video }" @click="buttonStates.video = !buttonStates.video"
+      <div class="side-button" :class="{ active: buttonStates.video }" @click.stop="buttonStates.video = !buttonStates.video"
         title="视频通话">
         <img src="@/assets/videocall.png" alt="video" />
       </div>
     </div>
     <!-- 注意DialogBox直接引用了useGameStore，因为这样子的话，可以避免很多父子传递的问题 -->
     <DialogBox class="dialog" />
-    <SiriWave :visible="app.showSiriWave" class="Siri-wave"/>
+    <SiriWave :visible="app.showSiriWave" class="Siri-wave" @click.stop/>
     <GameStage class="stage" />
   </div>
 </template>
@@ -43,6 +43,19 @@ const { processAudioQueue } = useLipSyncAudio(
     audio.mouthOpen = value
   }
 )
+
+const handleGlobalClick = () => {
+  if (gameStore.dialog.isPaused) {
+    gameStore.ws.send({ 
+      type: 'next',
+      token: localStorage.getItem('token')
+    })
+    console.log("发送 Next 信号")
+    
+    gameStore.dialog.isPaused = false
+    gameStore.dialog.textQueue.shift()
+  }
+}
 
 onMounted(() => {
   vadStore.initVAD()

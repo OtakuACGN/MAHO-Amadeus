@@ -1,14 +1,16 @@
 <template>
   <div>
     <div v-if="thinkText.length > 1" id="think-div" class="dialog-textarea think-color">{{ thinkText }}</div>
-    <textarea :readonly="!isInputMode" name="dialog-textarea" id="dialog-textarea" class="dialog-textarea"
-      v-model="dialogText" @keydown.enter.prevent="sendTextToWS" ref="textareaRef"></textarea>
-    <CaretSprite :textarea="textareaRef" :text="dialogText" :visible="isInputMode" :size="44" />
+    <div class="textarea-container">
+      <textarea :readonly="!isInputMode" name="dialog-textarea" id="dialog-textarea" class="dialog-textarea"
+        v-model="dialogText" @keydown.enter.prevent="sendTextToWS" ref="textareaRef"></textarea>
+    </div>
+    <CaretSprite :textarea="textareaRef" :text="dialogText" :visible="isInputMode || isPaused" :size="44" />
   </div>
 </template>
 
 <script setup lang="js">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, inject } from 'vue'
 import CaretSprite from './CaretSprite.vue'
 
 const props = defineProps({
@@ -20,6 +22,10 @@ const props = defineProps({
     type: Boolean,
     default: true
   },
+  isPaused: { // 新增属性
+    type: Boolean,
+    default: false
+  },
   textQueue: {
     type: Array,
     default: () => []
@@ -30,6 +36,15 @@ const emit = defineEmits(['send'])
 
 const dialogText = ref('')
 const textareaRef = ref()
+const isTyping = ref(false)
+
+// 监听模式切换，如果是进入AI说话模式，清空文本
+import { watch } from 'vue'
+watch(() => props.isInputMode, (newVal) => {
+  if (!newVal) {
+    dialogText.value = ''
+  }
+})
 
 function sendTextToWS(e) {
   if (!e.shiftKey && props.isInputMode) {
@@ -44,14 +59,25 @@ function sendTextToWS(e) {
 async function processTextQueue() {
   while (true) {
     if (props.isInputMode) {
+      isTyping.value = false
       await new Promise(resolve => setTimeout(resolve, 100)); // 等待100ms再检查
       continue;
     }
     await nextTick(); // 等待下一帧，防止阻塞
-    // 取出所有字符并筛选
-    const filtered = props.textQueue.filter(ch => ch !== '\n' && ch.trim() !== '');
-    dialogText.value = filtered.join('');
-    await new Promise(resolve => setTimeout(resolve, 100)); // 100ms轮询
+    
+    // 还原原本逻辑：流式追加显示。直接将队列中的内容合并显示
+    // 因为后端本身就是流式输出，追加合并即能产生打字机效果
+    const text = props.textQueue.join('');
+    if (dialogText.value !== text) {
+        dialogText.value = text;
+        // 自动滚动到底部
+        await nextTick();
+        if (textareaRef.value) {
+          textareaRef.value.scrollTop = textareaRef.value.scrollHeight;
+        }
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 50)); 
   }
 }
 
@@ -98,5 +124,11 @@ onMounted(() => {
 .think-color {
   color: #888888;
   font-style: italic;
+}
+
+.textarea-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 </style>

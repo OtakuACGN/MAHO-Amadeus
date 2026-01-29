@@ -22,12 +22,14 @@ class WSHandler():
     def __init__(self):
         self.auth_manager = AuthManager()  # 用于验证 WebSocket 消息中的 token
         self.current_chat_task = None      # 记录当前正在运行的聊天任务
+        self.orchestrator_task = None      # 演出编排任务
         self.characters = {}               # 存储当前连接的所有角色实例
-        self.character_tasks = []          # 存储所有角色的输出监听任务
+        self.director = None               # 导演实例
 
     def init_characters(self, manager):
         """初始化角色列表"""
         char_configs = manager.config.get("characters", [])
+        
         if not char_configs:
             # 如果没有配置角色，使用默认配置创建一个默认角色
             logging.warning("未在配置中找到角色定义，使用默认角色")
@@ -42,44 +44,27 @@ class WSHandler():
                 if name:
                     self.characters[name] = Character(name, conf, manager)
 
-    async def _forward_character_output(self, websocket, character):
-        """
-        监听角色的输出队列，并将结果实时转发到 WebSocket
-        """
-        while True:
-            try:
-                result = await character.output_queue.get()
-                await websocket.send_text(json.dumps(result))
-                character.output_queue.task_done()
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logging.error(f"[{character.name}] 分发输出失败: {e!r}")
-
-    async def _send_error(self, websocket, msg):
-        """发送错误消息给客户端"""
-        await websocket.send_text(json.dumps({"type": "error", "msg": msg}))
-
     def _validate_token(self, msg):
         """验证消息中的 token"""
         token = msg.get("token")
         return token and self.auth_manager.verify_token(token)
 
-    async def interrupt_chat(self, websocket, manager):
+    async def interrupt_chat(self, websocket):
         """
         中断当前的聊天逻辑：取消角色推理任务，并通知所有角色中断自己的处理
         """
-        # 取消当前的推理任务 (Director 驱动的任务)
-        if self.current_chat_task and not self.current_chat_task.done():
-            self.current_chat_task.cancel()
-            try:
-                await self.current_chat_task
-            except asyncio.CancelledError:
-                logging.info("推理任务已成功取消")
-            finally:
-                self.current_chat_task = None
+        # 清空剧本调度队列 (这是关键，防止后续排队的任务继续播放)
+        if self.director and self.director.script:
+             # asyncio.Queue 没有直接 clear 方法，只能循环 get
+            q = self.director.script.line_queue
+            while not q.empty():
+                try:
+                    q.get_nowait()
+                    q.task_done()
+                except asyncio.QueueEmpty:
+                    break
 
-        # 通知所有角色进行内部中断逻辑
+        # 通知所有角色进行内部中断逻辑 (清空自身的 output_queue)
         for name, character in self.characters.items():
             await character.interrupt()
 
@@ -128,15 +113,12 @@ class WSHandler():
         # 初始化导演
         self.director = Director(manager)
 
-        # 初始化角色
+        # 初始化角色 (此时可传入剧本引用)
         self.init_characters(manager)
         logging.info(f"已加载角色: {list(self.characters.keys())}")
 
-        # 启动角色的输出转发监听任务
-        self.character_tasks = []
-        for char_name, character in self.characters.items():
-            fwd_task = asyncio.create_task(self._forward_character_output(websocket, character))
-            self.character_tasks.append(fwd_task)
+        # 启动演出编排器后台任务 (现在由导演驱动)
+        self.orchestrator_task = asyncio.create_task(self.director.run_orchestrator(websocket, self.characters))
 
         try:
             # 主循环：接收消息并处理
@@ -146,7 +128,8 @@ class WSHandler():
                 
                 # 统一验证 token
                 if not self._validate_token(msg):
-                    await self._send_error(websocket, "未授权，请先登录")
+                    logging.warning(f"接收到未授权的消息: {msg_type}")
+                    await websocket.send_text(json.dumps({"type": "error", "message": "无效的 token"}))
                     continue
                 
                 msg_type = msg.get("type")
@@ -158,33 +141,36 @@ class WSHandler():
                     # 1. 由导演决定谁该说话
                     instructions = await self.director.dispatch_intent(user_text, available_chars)
                     
-                    # 2. 调用简化的 _handle_chat 执行指令
+                    # 2. 并行触发所有相关角色的生成任务
+                    task_list = []
                     for cmd in instructions:
                         character = self.characters.get(cmd["character"])
                         if character:
-                            self.current_chat_task = asyncio.create_task(character.chat(cmd["text"]))
+                            # 这里的 create_task 会立即开始生成，但输出会被 orchestrator 也就是 line_queue 阻塞顺序
+                            t = asyncio.create_task(character.chat(cmd["text"]))
+                            task_list.append(t)
                 
                 elif msg_type == "audio":
                     await self._handle_audio(websocket, manager, msg)
                 
+                elif msg_type == "next":
+                    # 前端点击了，触发下一步
+                    logging.info("收到 Next 信号，继续演出")
+                    if self.director:
+                        self.director.next_step.set()
+
                 elif msg_type == "interrupt":
-                    await self.interrupt_chat(websocket, manager)
+                    await self.interrupt_chat(websocket)
 
         except WebSocketDisconnect:
             logging.info("WebSocket 已断开")
         except Exception as e:
             logging.error(f"WebSocket 异常: {e}")
         finally:
+            # 停止编排器
+            if self.orchestrator_task:
+                self.orchestrator_task.cancel()
+            
             # 停止所有角色的内部后台任务
             for char in self.characters.values():
                 await char.stop_tasks()
-
-            # 取消所有输出监听任务
-            for task in self.character_tasks:
-                task.cancel()
-            
-            if self.character_tasks:
-                try:
-                    await asyncio.wait(self.character_tasks, timeout=2)
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    pass

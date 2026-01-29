@@ -1,16 +1,17 @@
 import asyncio
 import logging
 import re
-import json
 import base64
 
 class Character:
     """
-    角色类，存储角色的状态、记忆和配置，并负责自身的推理与后台处理任务。
+    一个纯粹的处理器，当我调用chat函数之后，
+    会在自身的输出队列出现一个有着开头，然后中间是各种音频或者文字片段，然后结尾是一个结束的这种队列。
     """
     def __init__(self, name: str, config: dict, manager=None):
         self.name = name
         self.manager = manager
+        
         self.system_prompt = config.get("system_prompt", "")
         # 存储该角色特定的 TTS 配置（如参考音频路径、提示词等）
         self.tts_config = config.get("tts_config", {})
@@ -37,7 +38,8 @@ class Character:
     async def stop_tasks(self):
         """停止后台任务"""
         for task in self.tasks:
-            task.cancel()
+            if task and not task.done():
+                task.cancel()
         if self.tasks:
             try:
                 await asyncio.gather(*self.tasks, return_exceptions=True)
