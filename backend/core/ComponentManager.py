@@ -5,6 +5,7 @@ from core.component.llm.LLMService import LLM
 from core.component.tts.TTSService import TTS
 from core.component.translator.TranslatorService import Translator
 from core.component.asr.ASRService import ASR
+from core.resource_lock import ResourceLock
 
 
 class ComponentManager:
@@ -24,3 +25,4 @@ class ComponentManager:
         self.translator = Translator(components_config.get("translator", {}))
         self.asr = ASR(components_config.get("asr", {}))
 
+        self.tts_lock = ResourceLock()  # TTS 独占资源锁

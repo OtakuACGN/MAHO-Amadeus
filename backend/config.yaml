@@ -20,12 +20,6 @@ components:
       genie_data_dir: "backend/models/GenieData"
       language: "ja"
       auto_load: true
-    # GPT-SoVITS 配置（原有配置）
-    gpt_sovits_api:
-      base_url: "http://127.0.0.1:9880"
-      prompt_language: "ja"
-      default_text_language: "ja"
-      speed: 1.2
 
   translator:
     select: baidu_api

@@ -3,30 +3,49 @@ import logging
 import re
 import base64
 
+
 class Character:
     """
     一个纯粹的处理器，当我调用chat函数之后，
     会在自身的输出队列出现一个有着开头，然后中间是各种音频或者文字片段，然后结尾是一个结束的这种队列。
     """
+
     def __init__(self, name: str, config: dict, manager=None):
         self.name = name
         self.manager = manager
-        
+
         self.system_prompt = config.get("system_prompt", "")
         # 存储该角色特定的 TTS 配置（如参考音频路径、提示词等）
         self.tts_config = config.get("tts_config", {})
-        
+
         self.history = []
         if self.system_prompt:
-            self.history.append({"role": "system", "content": self.system_prompt})
-            
+            self.history.append(
+                {"role": "system", "content": self.system_prompt})
+
         self.message_queue = asyncio.Queue()  # LLM 原始输出队列
-        self.sentence_queue = asyncio.Queue() # TTS 句子队列
+        self.sentence_queue = asyncio.Queue()  # TTS 句子队列
         self.output_queue = asyncio.Queue()   # 处理完毕后的结果输出队列 (供外部消费)
-        
+
         self.tasks = []
         if self.manager:
             self.start_tasks()
+            # 注册 TTS 角色
+            self._register_tts_character()
+            
+    def _register_tts_character(self):
+        """注册 TTS 角色信息"""
+        if not self.manager or not hasattr(self.manager.tts, 'register_character'):
+            return
+        
+        char_name = self.tts_config.get("character_name", self.name)
+        model_dir = self.tts_config.get("onnx_model_dir")
+        if char_name and model_dir:
+            try:
+                self.manager.tts.register_character(char_name, model_dir)
+                logging.info(f"[{self.name}] TTS 角色 '{char_name}' 已注册")
+            except Exception as e:
+                logging.error(f"[{self.name}] 注册 TTS 角色失败: {e}")
 
     def start_tasks(self):
         """启动后台处理任务"""
@@ -56,7 +75,7 @@ class Character:
                 self.message_queue.task_done()
             except asyncio.QueueEmpty:
                 break
-        
+
         while not self.sentence_queue.empty():
             try:
                 self.sentence_queue.get_nowait()
@@ -93,6 +112,9 @@ class Character:
             logging.error(f"[{self.name}] 无法开启对话：未绑定 ComponentManager")
             return
 
+        # 提前申请 TTS 资源锁
+        await self.manager.tts_lock.reserve(self.name)
+
         # 投递开始信号
         await self.output_queue.put({"type": "start", "character": self.name})
         logging.info(f"[{self.name}] 成功收到并开始处理: {user_text}")
@@ -115,6 +137,9 @@ class Character:
 
         # 投递结束信号
         await self.output_queue.put({"type": "end", "character": self.name})
+
+        # 释放TTS资源锁
+        await self.manager.tts_lock.release(self.name)
         logging.info(f"[{self.name}] 对话推理与后处理已全部完成")
 
     async def _process_char_loop(self):
@@ -146,7 +171,7 @@ class Character:
                 # 投递文本片段到外部输出队列
                 msg_type = "thinkText" if is_thinking else "text"
                 await self.output_queue.put({
-                    "type": msg_type, 
+                    "type": msg_type,
                     "data": char,
                     "character": self.name
                 })
@@ -177,12 +202,18 @@ class Character:
 
                 # 1. 翻译成日语
                 ja_sentence = await loop.run_in_executor(None, self.manager.translator.translate, sentence)
-                
-                # 2. 调用 TTS 生成音频
-                audio_data = await loop.run_in_executor(
-                    None, 
-                    lambda: self.manager.tts.generate_audio(ja_sentence, **self.tts_config)
-                )
+
+                # 2. 获取 TTS 资源锁
+                await self.manager.tts_lock.acquire(self.name)
+                try:
+                    # 调用 TTS 生成音频
+                    audio_data = await loop.run_in_executor(
+                        None,
+                        lambda: self.manager.tts.generate_audio(
+                            ja_sentence, **self.tts_config)
+                    )
+                finally:
+                    pass
 
                 # 3. 如果有音频，分片投递到输出队列
                 if audio_data:
@@ -197,7 +228,7 @@ class Character:
                             "is_final": (i + CHUNK_SIZE >= total_len),
                             "character": self.name
                         })
-                
+
                 self.sentence_queue.task_done()
             except asyncio.CancelledError:
                 break
