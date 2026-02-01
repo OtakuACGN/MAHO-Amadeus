@@ -13,7 +13,7 @@ class Script:
         # 格式示例: {"role": "user/character_name", "content": "消息内容"}
         
         # 台词调度队列，存放正在排队等待演出的角色信息
-        # 元素格式: {"character": "char_name", "task_id": "uuid"}
+        # 元素格式: {"character": "char_name"}
         self.line_queue = asyncio.Queue()
 
     def add_message(self, role: str, content: str):
@@ -23,11 +23,10 @@ class Script:
         if len(self.public_history) > 20:
             self.public_history.pop(0)
 
-    async def register_line(self, character_name: str, task_id: str = None):
+    async def register_line(self, character_name: str):
         """角色申请发言，注册到台词队列"""
         await self.line_queue.put({
-            "character": character_name,
-            "task_id": task_id
+            "character": character_name
         })
         logging.info(f"[Script] 角色 {character_name} 已加入演出队列")
 

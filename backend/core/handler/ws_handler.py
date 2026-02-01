@@ -146,19 +146,13 @@ class WSHandler():
                     for cmd in instructions:
                         character = self.characters.get(cmd["character"])
                         if character:
-                            # 这里的 create_task 会立即开始生成，但输出会被 orchestrator 也就是 line_queue 阻塞顺序
+                            # 这里的 create_task 会立即开始生成，发送给前端的信息会由导演负责
                             t = asyncio.create_task(character.chat(cmd["text"]))
                             task_list.append(t)
                 
                 elif msg_type == "audio":
                     await self._handle_audio(websocket, manager, msg)
                 
-                elif msg_type == "next":
-                    # 前端点击了，触发下一步
-                    logging.info("收到 Next 信号，继续演出")
-                    if self.director:
-                        self.director.next_step.set()
-
                 elif msg_type == "interrupt":
                     await self.interrupt_chat(websocket)
 

@@ -12,9 +12,6 @@ class Director:
     def __init__(self, manager):
         self.script = Script(world_view=manager.config.get("world_view", "这是一个虚拟人物互动的世界。"))
         self.intent_llm = manager.llm  # 默认使用配置中的 LLM 进行意图识别
-        # 用于控制演出节奏的“继续”信号
-        # 当一个角色演出完毕后，由于需要等待前端点击，演出线程会 await next_step.wait()
-        self.next_step = asyncio.Event()
 
     async def run_orchestrator(self, websocket, characters: Dict):
         """
@@ -49,10 +46,7 @@ class Director:
 
                     # 3. 如果是 end 信号，表示该角色本次发言结束
                     if item.get("type") == "end":
-                        logging.info(f"[Director] --- 角色 {char_name} 发言结束，等待前端点击 'Next' ---")
-                        # 4. 关键：暂停，等待前端信号
-                        self.next_step.clear()
-                        await self.next_step.wait()
+                        logging.info(f"[Director] --- 角色 {char_name} 发言结束 ---")
                         break
                 
                 self.script.line_queue.task_done()

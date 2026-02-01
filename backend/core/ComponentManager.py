@@ -5,7 +5,7 @@ from core.component.llm.LLMService import LLM
 from core.component.tts.TTSService import TTS
 from core.component.translator.TranslatorService import Translator
 from core.component.asr.ASRService import ASR
-from core.resource_lock import ResourceLock
+from core.util.resource_lock import ResourceLock
 
 
 class ComponentManager:
