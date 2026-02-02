@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useWSStore } from './ws'
-import { useStageStore } from './stage'
+import { useWSStore } from './modules/ws'
+import { useStageStore } from './modules/stage'
 
 export interface AudioChunk {
   data: string // base64
@@ -28,7 +28,6 @@ export const usePerformanceStore = defineStore('performance', () => {
     
     const queue = ref<PerformanceSegment[]>([])
     const isAutoPlay = ref(true) // 前端播放完毕后是否自动请求下一句(如果后端需要信号)
-    // 注意：现在的后端不需要 Next 信号了，所以这个 flag 主要用于“自动开始播放下一段”
 
     // 获取当前正在接收数据的 Segment (通常是队尾那个，且尚未完成)
     const activeReceiver = computed(() => {
@@ -96,8 +95,6 @@ export const usePerformanceStore = defineStore('performance', () => {
     wsStore.wsClient.on('finish', () => {
         // 整个脚本结束
     })
-
-    // --- Actions ---
     
     // 播放完毕，移除队头
     const shiftSegment = () => {

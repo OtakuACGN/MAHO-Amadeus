@@ -1,17 +1,10 @@
 <template>
   <div>
-    <CenterRevealMask :visible="app.showDialog">
-      <div class="dialog-container" :class="{ 'speaking-mode': dialog.isWaiting }">
+    <CenterRevealMask :visible="dialog.showDialog">
+      <div class="dialog-container">
         <DialogBackground />
         <meswinName :name="dialog.currentName" class="Meswinname" />
-        <!-- DialogTextArea是主要的对话输入和显示组件，其他的一般都是装饰性的东西 -->
-        <DialogTextArea 
-          :thinkText="dialog.thinkText"
-          :isInputMode="!dialog.isWaiting"
-          :isPaused="dialog.isPaused"
-          :textQueue="dialog.textQueue"
-          @send="ws.send"
-        />
+        <DialogTextArea />
       </div>
     </CenterRevealMask>
   </div>
@@ -26,19 +19,19 @@ import meswinName from './meswinName.vue';
 import DialogTextArea from './DialogTextArea/index.vue'
 
 const gameStore = useGameStore()
-const { app, dialog, ws } = gameStore
+const { dialog } = gameStore
 
 // 是否显示/隐藏对话框
 const handleKeyDown = (e) => {
   if (e.key.toLowerCase() === 'h' && e.shiftKey) {
-    app.showDialog = !app.showDialog
+    dialog.showDialog = !dialog.showDialog
   }
 }
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
   setTimeout(() => {
-    app.showDialog = true
+    dialog.showDialog = true
   }, 1000)
 })
 

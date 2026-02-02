@@ -4,7 +4,6 @@ import { useWSStore } from './modules/ws'
 import { useStageStore } from './modules/stage'
 import { useDialogStore } from './modules/dialog'
 import { useAudioStore } from './modules/audio'
-import { usePerformanceStore } from './modules/performance'
 
 /**
  * 这是一个中转器 Store，它将各个领域的 Store 聚合在一起。
@@ -17,6 +16,5 @@ export const useGameStore = defineStore('game', () => {
     stage: useStageStore(),
     dialog: useDialogStore(),
     audio: useAudioStore(),
-    performance: usePerformanceStore()
   }
 })

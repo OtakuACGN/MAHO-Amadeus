@@ -1,5 +1,5 @@
 <template>
-  <div class="home-page" @click="handleGlobalClick">
+  <div class="home-page">
     <div v-if="wsStatus !== 'connected'" class="ws-status-tip">WebSocket连接失效，正在尝试连接...</div>
     <!-- 左上角按钮区 -->
     <div class="button-sidebar">
@@ -43,19 +43,6 @@ const { processAudioQueue } = useLipSyncAudio(
     audio.mouthOpen = value
   }
 )
-
-const handleGlobalClick = () => {
-  if (gameStore.dialog.isPaused) {
-    gameStore.ws.send({ 
-      type: 'next',
-      token: localStorage.getItem('token')
-    })
-    console.log("发送 Next 信号")
-    
-    gameStore.dialog.isPaused = false
-    gameStore.dialog.textQueue.shift()
-  }
-}
 
 onMounted(() => {
   vadStore.initVAD()
