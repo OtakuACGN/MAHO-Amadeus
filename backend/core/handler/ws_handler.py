@@ -15,8 +15,8 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 class WSHandler():
     """
-    负责处理 WebSocket 连接，接收消息并通过 ComponentManager 实例进行处理，
-    每个websocket连接对应一个 ComponentManager 实例，确保用户隔离。
+    负责处理 WebSocket 连接，接收消息并通过 Components 实例进行处理，
+    每个websocket连接对应一个 Components 实例，确保用户隔离。
     """
 
     def __init__(self):
@@ -26,23 +26,23 @@ class WSHandler():
         self.characters = {}               # 存储当前连接的所有角色实例
         self.director = None               # 导演实例
 
-    def init_characters(self, manager):
+    def init_characters(self, components):
         """初始化角色列表"""
-        char_configs = manager.config.get("characters", [])
+        char_configs = components.config.get("characters", [])
         
         if not char_configs:
             # 如果没有配置角色，使用默认配置创建一个默认角色
             logging.warning("未在配置中找到角色定义，使用默认角色")
             default_config = {
-                "system_prompt": manager.config.get("llm", {}).get("system_prompt", ""),
+                "system_prompt": components.config.get("llm", {}).get("system_prompt", ""),
                 "tts_config": {}
             }
-            self.characters["maho"] = Character("maho", default_config, manager)
+            self.characters["maho"] = Character("maho", default_config, components)
         else:
             for conf in char_configs:
                 name = conf.get("name")
                 if name:
-                    self.characters[name] = Character(name, conf, manager)
+                    self.characters[name] = Character(name, conf, components)
 
     def _validate_token(self, msg):
         """验证消息中的 token"""
@@ -72,7 +72,7 @@ class WSHandler():
         await websocket.send_text(json.dumps({"type": "end"}))
         logging.info("已中断当前对话并清理所有角色状态")
 
-    def _create_asr_callback(self, websocket, manager):
+    def _create_asr_callback(self, websocket, components):
         """创建 ASR 成功回调，改为主循环中通过导演分发指令"""
         async def on_asr_success(text):
             if text:
@@ -89,21 +89,21 @@ class WSHandler():
                 logging.info("ASR 识别结果为空")
         return on_asr_success
 
-    async def _handle_audio(self, websocket, manager, msg):
+    async def _handle_audio(self, websocket, components, msg):
         """处理语音/音频数据流"""
         # 更新 ASR 回调 (不再绑定特定角色)
-        callback = self._create_asr_callback(websocket, manager)
-        manager.asr.set_callback(callback)
+        callback = self._create_asr_callback(websocket, components)
+        components.asr.set_callback(callback)
             
         try:
             audio_data = msg.get("data")
             is_final = msg.get("is_final", False)
             chunk = base64.b64decode(audio_data) if audio_data else b""
-            await manager.asr.send_audio(chunk, is_final=is_final)
+            await components.asr.send_audio(chunk, is_final=is_final)
         except Exception as e:
             logging.error(f"ASR 处理失败: {e}")
 
-    async def handle_ws(self, websocket, manager):
+    async def handle_ws(self, websocket, components):
         """
         这里主要是接收数据
         """
@@ -111,10 +111,10 @@ class WSHandler():
         logging.info("WebSocket 连接已接受")
         
         # 初始化导演
-        self.director = Director(manager)
+        self.director = Director(components)
 
         # 初始化角色 (此时可传入剧本引用)
-        self.init_characters(manager)
+        self.init_characters(components)
         logging.info(f"已加载角色: {list(self.characters.keys())}")
 
         # 启动演出编排器后台任务 (现在由导演驱动)
@@ -128,7 +128,7 @@ class WSHandler():
                 
                 # 统一验证 token
                 if not self._validate_token(msg):
-                    logging.warning(f"接收到未授权的消息: {msg_type}")
+                    logging.warning(f"接收到未授权的消息")
                     await websocket.send_text(json.dumps({"type": "error", "message": "无效的 token"}))
                     continue
                 
@@ -151,7 +151,7 @@ class WSHandler():
                             task_list.append(t)
                 
                 elif msg_type == "audio":
-                    await self._handle_audio(websocket, manager, msg)
+                    await self._handle_audio(websocket, components, msg)
                 
                 elif msg_type == "interrupt":
                     await self.interrupt_chat(websocket)

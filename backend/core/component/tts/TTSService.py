@@ -3,8 +3,8 @@ import importlib
 
 class TTS:
     """
-        TTS 服务类，对于不同的组件和ComponentManager提供的一个中间层。
-        所有的组件必须实现一个类Client:
+        TTS 服务类，对于不同的组件和 Components 提供的一个中间层。
+        所有的组件必须实现一个类 Client:
         class Client:
             def generate_audio(self, text: str, **kwargs) -> bytes:
                 ...

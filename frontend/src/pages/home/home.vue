@@ -8,9 +8,9 @@
         <img src="@/assets/videocall.png" alt="video" />
       </div>
     </div>
-    <!-- 注意DialogBox直接引用了useGameStore，因为这样子的话，可以避免很多父子传递的问题 -->
+    <!-- 注意DialogBox直接引用了具体的 Store，因为这样子的话，可以避免很多父子传递的问题 -->
     <DialogBox class="dialog" />
-    <SiriWave :visible="app.showSiriWave" class="Siri-wave" @click.stop/>
+    <SiriWave :visible="appStore.showSiriWave" class="Siri-wave" @click.stop/>
     <GameStage class="stage" />
   </div>
 </template>
@@ -20,45 +20,38 @@ import GameStage from './GameStage/index.vue'
 import DialogBox from './DialogBox/index.vue'
 import SiriWave from './SiriWave.vue'
 import { onMounted } from 'vue'
-import { useGameStore } from '@/stores/game'
-import { useVADStore } from '@/stores/vad'
+import { useAppStore } from '@/stores/modules/app'
+import { useWSStore } from '@/stores/modules/ws'
+import { useVADStore } from '@/stores/modules/vad'
 import { storeToRefs } from 'pinia'
-import { useLipSyncAudio } from '@/pages/home/useLipSyncAudio'
+import { usePerformanceStore } from '@/stores/performance'
 
-const gameStore = useGameStore()
+const appStore = useAppStore()
+const wsStore = useWSStore()
 const vadStore = useVADStore()
+const performanceStore = usePerformanceStore()
 
 // 使用拆分后的 Store 引用
-const { app, ws, audio } = gameStore
-const { wsStatus } = storeToRefs(ws)
-const { buttonStates } = storeToRefs(app)
-const { audioQueue } = storeToRefs(audio)
-
-const { getAudioContext } = vadStore
-
-const { processAudioQueue } = useLipSyncAudio(
-  audioQueue,
-  getAudioContext,
-  (value) => {
-    audio.mouthOpen = value
-  }
-)
+const { wsStatus } = storeToRefs(wsStore)
+const { buttonStates } = storeToRefs(appStore)
 
 onMounted(() => {
   vadStore.initVAD()
   vadStore.onVoiceStart = () => {
     if (buttonStates.value.video) {
-      app.showDialog = false
-      app.showSiriWave = true
+      appStore.showDialog = false
+      appStore.showSiriWave = true
     }
   }
   vadStore.onVoiceEnd = () => {
     if (buttonStates.value.video) {
-      app.showDialog = true
-      app.showSiriWave = false
+      appStore.showDialog = true
+      appStore.showSiriWave = false
     }
   }
-  processAudioQueue()
+  
+  // 开启演出队列监听 (中途径音频播放与同步)
+  performanceStore.startConsumer()
 })
 </script>
 

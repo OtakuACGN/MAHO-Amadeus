@@ -8,9 +8,9 @@ from core.component.asr.ASRService import ASR
 from core.util.resource_lock import ResourceLock
 
 
-class ComponentManager:
+class Components:
     """
-        ComponentManager核心类，负责初始化和管理核心功能
+        Components核心类，负责初始化和管理核心功能
     """
 
     def __init__(self):

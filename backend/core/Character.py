@@ -10,9 +10,9 @@ class Character:
     会在自身的输出队列出现一个有着开头，然后中间是各种音频或者文字片段，然后结尾是一个结束的这种队列。
     """
 
-    def __init__(self, name: str, config: dict, manager=None):
+    def __init__(self, name: str, config: dict, components=None):
         self.name = name
-        self.manager = manager
+        self.components = components
 
         self.system_prompt = config.get("system_prompt", "")
         # 存储该角色特定的 TTS 配置（如参考音频路径、提示词等）
@@ -28,21 +28,21 @@ class Character:
         self.output_queue = asyncio.Queue()   # 处理完毕后的结果输出队列 (供外部消费)
 
         self.tasks = []
-        if self.manager:
+        if self.components:
             self.start_tasks()
             # 注册 TTS 角色
             self._register_tts_character()
             
     def _register_tts_character(self):
         """注册 TTS 角色信息"""
-        if not self.manager or not hasattr(self.manager.tts, 'register_character'):
+        if not self.components or not hasattr(self.components.tts, 'register_character'):
             return
         
         char_name = self.tts_config.get("character_name", self.name)
         model_dir = self.tts_config.get("onnx_model_dir")
         if char_name and model_dir:
             try:
-                self.manager.tts.register_character(char_name, model_dir)
+                self.components.tts.register_character(char_name, model_dir)
                 logging.info(f"[{self.name}] TTS 角色 '{char_name}' 已注册")
             except Exception as e:
                 logging.error(f"[{self.name}] 注册 TTS 角色失败: {e}")
@@ -108,12 +108,12 @@ class Character:
         触发角色的推理流程。
         结果会推入 output_queue 中。
         """
-        if not self.manager:
-            logging.error(f"[{self.name}] 无法开启对话：未绑定 ComponentManager")
+        if not self.components:
+            logging.error(f"[{self.name}] 无法开启对话：未绑定 Components")
             return
 
         # 提前申请 TTS 资源锁
-        await self.manager.tts_lock.reserve(self.name)
+        await self.components.tts_lock.reserve(self.name)
 
         # 投递开始信号
         await self.output_queue.put({"type": "start", "character": self.name})
@@ -124,7 +124,7 @@ class Character:
 
         full_response = ""
         # 流式调用 LLM
-        async for response in self.manager.llm.generate(self.history):
+        async for response in self.components.llm.generate(self.history):
             full_response += response
             await self.message_queue.put(response)
 
@@ -139,7 +139,7 @@ class Character:
         await self.output_queue.put({"type": "end", "character": self.name})
 
         # 释放TTS资源锁
-        await self.manager.tts_lock.release(self.name)
+        await self.components.tts_lock.release(self.name)
         logging.info(f"[{self.name}] 对话推理与后处理已全部完成")
 
     async def _process_char_loop(self):
@@ -201,15 +201,15 @@ class Character:
                 loop = asyncio.get_event_loop()
 
                 # 1. 翻译成日语
-                ja_sentence = await loop.run_in_executor(None, self.manager.translator.translate, sentence)
+                ja_sentence = await loop.run_in_executor(None, self.components.translator.translate, sentence)
 
                 # 2. 获取 TTS 资源锁
-                await self.manager.tts_lock.acquire(self.name)
+                await self.components.tts_lock.acquire(self.name)
                 try:
                     # 调用 TTS 生成音频
                     audio_data = await loop.run_in_executor(
                         None,
-                        lambda: self.manager.tts.generate_audio(
+                        lambda: self.components.tts.generate_audio(
                             ja_sentence, **self.tts_config)
                     )
                 finally:

@@ -9,9 +9,9 @@ class Director:
     导演类，负责统筹剧本演进、维护公共记忆，并进行意图识别和任务分发。
     同时负责具体的演出编排（Orchestration），决定什么时候向前端发送哪个角色的输出。
     """
-    def __init__(self, manager):
-        self.script = Script(world_view=manager.config.get("world_view", "这是一个虚拟人物互动的世界。"))
-        self.intent_llm = manager.llm  # 默认使用配置中的 LLM 进行意图识别
+    def __init__(self, components):
+        self.script = Script(world_view=components.config.get("world_view", "这是一个虚拟人物互动的世界。"))
+        self.intent_llm = components.llm  # 默认使用配置中的 LLM 进行意图识别
 
     async def run_orchestrator(self, websocket, characters: Dict):
         """

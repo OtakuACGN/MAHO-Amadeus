@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { applyTransform } from '@/util/transform'
-import type { CharacterConfig } from '@/stores/modules/character'
+import type { CharacterConfig } from '@/stores/modules/stage'
 import * as TWEEN from '@tweenjs/tween.js'
 
 export class CharacterLayer {

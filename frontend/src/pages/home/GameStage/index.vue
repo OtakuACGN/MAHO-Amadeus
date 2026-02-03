@@ -4,15 +4,15 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { useGameStore } from '@/stores/game'
+import { useStageStore } from '@/stores/modules/stage'
+import { useAudioStore } from '@/stores/modules/audio'
 import { storeToRefs } from 'pinia'
 import { StageManager } from './core/StageManager'
 
-const gameStore = useGameStore()
-const { char, stage, audio } = gameStore
-const { activeCharacters } = storeToRefs(char)
-const { background } = storeToRefs(stage)
-const { mouthOpen, speakingCharacterId } = storeToRefs(audio)
+const stageStore = useStageStore()
+const audioStore = useAudioStore()
+const { activeCharacters, background } = storeToRefs(stageStore)
+const { mouthOpen, speakingCharacterId } = storeToRefs(audioStore)
 
 const stageContainer = ref(null)
 let stageManager = null
@@ -33,20 +33,25 @@ onMounted(async () => {
   // 2. 加载 Live2D 运行库
   await stageManager.initLive2D()
 
-  // 3. 初始同步背景与角色
-  await syncAll()
+  // 3. 监听变化并触发初始同步 (immediate: true 替代了 syncAll)
+  watch(activeCharacters, (configs) => {
+    if (stageManager) {
+      stageManager.characterLayer.syncCharacters(
+        configs, 
+        stageManager.Live2DModel, 
+        stageManager.screen
+      )
+    }
+  }, { deep: true, immediate: true })
 
-  // 4. 监听变化
-  watch(activeCharacters, () => stageManager.characterLayer.syncCharacters(
-    activeCharacters.value, 
-    stageManager.Live2DModel, 
-    stageManager.screen
-  ), { deep: true })
-
-  watch(background, () => stageManager.backgroundLayer.syncBackground(
-    background.value, 
-    stageManager.screen
-  ), { deep: true })
+  watch(background, (bgConfig) => {
+    if (stageManager) {
+      stageManager.backgroundLayer.syncBackground(
+        bgConfig, 
+        stageManager.screen
+      )
+    }
+  }, { deep: true, immediate: true })
 
   // 监听口型数值同步到 Live2D
   watch(mouthOpen, (val) => {
@@ -64,15 +69,6 @@ onUnmounted(() => {
   }
   window.removeEventListener('resize', handleResize)
 })
-
-async function syncAll() {
-  if (!stageManager) return
-  
-  await Promise.all([
-    stageManager.backgroundLayer.syncBackground(background.value, stageManager.screen),
-    stageManager.characterLayer.syncCharacters(activeCharacters.value, stageManager.Live2DModel, stageManager.screen)
-  ])
-}
 
 function handleResize() {
   if (stageManager) {

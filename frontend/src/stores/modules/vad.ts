@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useWSStore } from './modules/ws'
-import { useAppStore } from './modules/app'
+import { useWSStore } from './ws'
+import { useAppStore } from './app'
 // @ts-ignore
 import VAD from '@/util/vad'
 
