@@ -50,3 +50,17 @@ class ResourceLock:
                 if self.queue:
                     self.queue.popleft()
                 self.condition.notify_all()
+
+class DummyLock:
+    """
+    空对象锁：接口与 ResourceLock 一致，但不执行任何实际的锁定逻辑。
+    用于在配置文件中关闭锁机制时，保持代码逻辑不变。
+    """
+    async def reserve(self, agent_id):
+        pass
+
+    async def acquire(self, agent_id):
+        pass
+
+    async def release(self, agent_id):
+        pass

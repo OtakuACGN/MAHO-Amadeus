@@ -5,7 +5,7 @@ from core.component.llm.LLMService import LLM
 from core.component.tts.TTSService import TTS
 from core.component.translator.TranslatorService import Translator
 from core.component.asr.ASRService import ASR
-from core.util.resource_lock import ResourceLock
+from core.util.resource_lock import ResourceLock, DummyLock
 
 
 class Components:
@@ -25,4 +25,8 @@ class Components:
         self.translator = Translator(components_config.get("translator", {}))
         self.asr = ASR(components_config.get("asr", {}))
 
-        self.tts_lock = ResourceLock()  # TTS 独占资源锁
+        # 根据配置决定是否启用 TTS 资源锁
+        if components_config.get("tts", {}).get("use_resource_lock", True):
+            self.tts_lock = ResourceLock()
+        else:
+            self.tts_lock = DummyLock()

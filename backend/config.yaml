@@ -14,6 +14,7 @@ components:
 
   tts:
     select: genie_tts_service  # 可选: gpt_sovits_api 或 genie_tts_service
+    use_resource_lock: true    # 是否启用 TTS 资源锁（并发合成排队机制）
     # Genie TTS 配置（轻量化 ONNX 推理）
     genie_tts_service:
       onnx_model_dir: "backend/models/TTS-maho" # 注意：目前 Genie service 可能不支持通过请求参数动态切换模型目录，这里可能需要进一步修改 Service 代码。暂时先保留默认。
