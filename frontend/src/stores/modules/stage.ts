@@ -7,7 +7,7 @@ export interface CharacterConfig {
   modelPath: string
   scale?: number
   position?: { x: number, y: number }
-  isActive: boolean
+  mouthOpen: number // 嘴巴张开幅度 (0-1)
 }
 
 export interface BackgroundConfig {
@@ -18,32 +18,30 @@ export interface BackgroundConfig {
 
 export const useStageStore = defineStore('stage', () => {
   // 角色配置
-  const characters = ref<Record<string, CharacterConfig>>({
-    'maho': {
+  const characters = ref<CharacterConfig[]>([
+    {
       id: 'maho',
       name: '比屋定真帆',
       modelPath: '/maho-l2d/maho.model3.json',
-      scale: 0.4,
-      position: { x: 0.5, y: 0.5 },
-      isActive: true
+      scale: 0.32,
+      position: { x: 0.3, y: 0.65 },
+      mouthOpen: 0
     },
-    'may': {
+    {
       id: 'may',
       name: '椎名真由理',
       modelPath: '/MAY-l2d/MAY-live2d.model3.json',
       scale: 0.4,
-      position: { x: 0.5, y: 0.5 },
-      isActive: true
+      position: { x: 0.7, y: 0.6 },
+      mouthOpen: 0
     }
-  })
+  ])
 
-  const activeCharacters = computed(() => {
-    return Object.values(characters.value).filter(c => c.isActive)
-  })
-
+  // 更新指定角色的变换配置，通过id
   const updateCharacterTransform = (id: string, transform: Partial<CharacterConfig>) => {
-    if (characters.value[id]) {
-      characters.value[id] = { ...characters.value[id], ...transform }
+    const index = characters.value.findIndex(c => c.id === id)
+    if (index !== -1) {
+      characters.value[index] = { ...characters.value[index], ...transform }
     }
   }
 
@@ -60,7 +58,6 @@ export const useStageStore = defineStore('stage', () => {
 
   return {
     characters,
-    activeCharacters,
     updateCharacterTransform,
     background,
     setBackground

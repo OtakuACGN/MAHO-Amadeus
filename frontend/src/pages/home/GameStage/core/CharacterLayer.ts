@@ -50,6 +50,12 @@ export class CharacterLayer {
         y: config.position?.y ?? 0.65,
         scale: config.scale ?? 0.4
       }, screen)
+
+      // 同步嘴巴张开幅度
+      if (typeof config.mouthOpen === 'number') {
+        const PARAM_MOUTH_OPEN_Y = 'ParamMouthOpenY'
+        model.internalModel.coreModel.setParameterValueById(PARAM_MOUTH_OPEN_Y, config.mouthOpen)
+      }
     }
   }
 

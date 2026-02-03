@@ -25,11 +25,13 @@ import { useWSStore } from '@/stores/modules/ws'
 import { useVADStore } from '@/stores/modules/vad'
 import { storeToRefs } from 'pinia'
 import { usePerformanceStore } from '@/stores/performance'
+import { useDirectorStore } from '@/stores/director'
 
 const appStore = useAppStore()
 const wsStore = useWSStore()
 const vadStore = useVADStore()
 const performanceStore = usePerformanceStore()
+const directorStore = useDirectorStore()
 
 // 使用拆分后的 Store 引用
 const { wsStatus } = storeToRefs(wsStore)
@@ -50,8 +52,11 @@ onMounted(() => {
     }
   }
   
-  // 开启演出队列监听 (中途径音频播放与同步)
-  performanceStore.startConsumer()
+  // 初始化导演状态
+  directorStore.enterInputStandby()
+
+  // 监听点击事件触发导演逻辑
+  window.addEventListener('click', directorStore.handleScreenClick)
 })
 </script>
 

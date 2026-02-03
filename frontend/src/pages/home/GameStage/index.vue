@@ -11,7 +11,7 @@ import { StageManager } from './core/StageManager'
 
 const stageStore = useStageStore()
 const audioStore = useAudioStore()
-const { activeCharacters, background } = storeToRefs(stageStore)
+const { characters, background } = storeToRefs(stageStore)
 const { mouthOpen, speakingCharacterId } = storeToRefs(audioStore)
 
 const stageContainer = ref(null)
@@ -34,7 +34,7 @@ onMounted(async () => {
   await stageManager.initLive2D()
 
   // 3. 监听变化并触发初始同步 (immediate: true 替代了 syncAll)
-  watch(activeCharacters, (configs) => {
+  watch(characters, (configs) => {
     if (stageManager) {
       stageManager.characterLayer.syncCharacters(
         configs, 

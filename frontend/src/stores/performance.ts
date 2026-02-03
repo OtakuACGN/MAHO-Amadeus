@@ -32,6 +32,11 @@ export const usePerformanceStore = defineStore('performance', () => {
     
     const queue = ref<PerformanceSegment[]>([])
 
+    // 获取当前正在演出的 Segment (队首)
+    const currentPerformance = computed(() => {
+        return queue.value.length > 0 ? queue.value[0] : null
+    })
+
     // 获取当前正在接收数据的 Segment (队尾)
     const activeReceiver = computed(() => {
         if (queue.value.length === 0) return null
@@ -62,7 +67,7 @@ export const usePerformanceStore = defineStore('performance', () => {
     wsStore.wsClient.on('text', (msg: any) => {
         if (activeReceiver.value && activeReceiver.value.characterId === msg.character) {
              activeReceiver.value.text += (msg.data || '')
-             // 如果消息里包含结束标记可以设置 isTextComplete，目前默认为 true（因为是流式的）
+             activeReceiver.value.isThinkingComplete = true // 正文来了，思考肯定结束了
         }
     })
     
@@ -72,40 +77,66 @@ export const usePerformanceStore = defineStore('performance', () => {
         }
     })
 
+    // 临时缓冲区：用于拼接同一句话的音频分片
+    let audioBuffer: string[] = []
+
     wsStore.wsClient.on('audio', (msg: any) => {
-         if (activeReceiver.value && (activeReceiver.value.characterId === msg.character || msg.character === undefined)) {
-             activeReceiver.value.audioChunks.push({
-                 data: msg.data,
-                 is_final: msg.is_final
-             })
+         const receiver = activeReceiver.value
+         if (receiver && (receiver.characterId === msg.character || msg.character === undefined)) {
+             receiver.isThinkingComplete = true // 音频来了，思考肯定结束了
+             // 收集分片
+             if (msg.data) audioBuffer.push(msg.data)
+             
+             // 如果是本次音频流的最后一帧，则合并为一个可播放单元
              if (msg.is_final) {
-                 activeReceiver.value.isAudioComplete = true
+                 const fullBase64 = audioBuffer.join('') // 后端按30k切分(3的倍数)，直接拼接安全
+                 receiver.audioChunks.push({
+                     data: fullBase64,
+                     is_final: true
+                 })
+                 audioBuffer = [] // 清空缓冲
+                 
+                 // 注意：这里只是这一句话结束，不是整个 segment 的 isAudioComplete
+                 // isAudioComplete 应该由 'end' 消息来兜底标记
              }
          }
     })
 
     wsStore.wsClient.on('end', (msg: any) => {
-        if (activeReceiver.value && (activeReceiver.value.characterId === msg.character || msg.character === undefined)) {
-             activeReceiver.value.isSegmentComplete = true
-             // 总体结束后，标记所有子状态完成
-             activeReceiver.value.isThinkingComplete = true
-             activeReceiver.value.isTextComplete = true
-             activeReceiver.value.isAudioComplete = true
+        const receiver = activeReceiver.value
+        if (receiver && (receiver.characterId === msg.character || msg.character === undefined)) {
+             // 如果还有残留的音频缓冲（防御性代码），强制合并
+             if (audioBuffer.length > 0) {
+                  receiver.audioChunks.push({
+                      data: audioBuffer.join(''),
+                      is_final: true
+                  })
+                  audioBuffer = []
+             }
+
+             // 先缓存引用，再一次性修改状态
+             receiver.isThinkingComplete = true
+             receiver.isTextComplete = true
+             receiver.isAudioComplete = true
+             // 最后标记整个片段结束，这会导致 activeReceiver 变为 null
+             receiver.isSegmentComplete = true
         }
     })
     
-    const shiftSegment = () => {
+    const popPerformance = () => {
         queue.value.shift()
     }
     
     const clearQueue = () => {
         queue.value = []
+        audioBuffer = []
     }
 
     return {
         queue,
+        currentPerformance,
         activeReceiver,
-        shiftSegment,
+        popPerformance,
         clearQueue
     }
 })
