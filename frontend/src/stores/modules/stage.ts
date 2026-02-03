@@ -28,7 +28,7 @@ export const useStageStore = defineStore('stage', () => {
       mouthOpen: 0
     },
     {
-      id: 'may',
+      id: 'mayuri',
       name: '椎名真由理',
       modelPath: '/MAY-l2d/MAY-live2d.model3.json',
       scale: 0.4,

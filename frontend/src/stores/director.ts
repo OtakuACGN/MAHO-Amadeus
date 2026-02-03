@@ -56,7 +56,7 @@ export const useDirectorStore = defineStore('director', () => {
    * 2. 切换到 [演出状态]
    */
   const enterPerformance = async () => {
-    const act = performanceStore.currentPerformance
+    const act = performanceStore.headPerformance
     if (!act) return
 
     currentState.value = DirectorState.Performance
@@ -118,15 +118,16 @@ export const useDirectorStore = defineStore('director', () => {
 
       playNextAudio(act)
     } else {
-      if (!act.isAudioComplete) {
+      if (!act.isSegmentComplete) {
         setTimeout(() => playNextAudio(act), 100)
-      } else {
-        audioStore.setSpeakingCharacter(null)
-        audioStore.setMouthOpen(0)
-        stageStore.updateCharacterTransform(act.characterId, { mouthOpen: 0 })
-        isAudioFinished.value = true
-        checkFinish()
+        return
       }
+      
+      audioStore.setSpeakingCharacter(null)
+      audioStore.setMouthOpen(0)
+      stageStore.updateCharacterTransform(act.characterId, { mouthOpen: 0 })
+      isAudioFinished.value = true
+      checkFinish()
     }
   }
 
@@ -163,12 +164,10 @@ export const useDirectorStore = defineStore('director', () => {
           if (act.text && textIndex < act.text.length) {
               dialogStore.displayedText += act.text[textIndex]
               textIndex++
-          } else if (act.isTextComplete) {
-              if (textIndex >= (act.text?.length || 0)) {
-                  clearInterval(typeInterval!)
-                  isTextFinished.value = true
-                  checkFinish()
-              }
+          } else if (act.isSegmentComplete && textIndex >= (act.text?.length || 0)) {
+              clearInterval(typeInterval!)
+              isTextFinished.value = true
+              checkFinish()
           }
       }
     }, 1000 / textSpeed.value)
@@ -180,7 +179,7 @@ export const useDirectorStore = defineStore('director', () => {
     }
   }
 
-  // --- 外部交互 ---
+  // --- 触发上面函数的地方 ---
 
   /**
    * 用户点击页面触发

@@ -22,8 +22,6 @@ export interface PerformanceSegment {
   
   // 状态标记
   isThinkingComplete: boolean
-  isTextComplete: boolean
-  isAudioComplete: boolean
   isSegmentComplete: boolean // 后端是否发送了总体的 'end' 信号
 }
 
@@ -32,13 +30,13 @@ export const usePerformanceStore = defineStore('performance', () => {
     
     const queue = ref<PerformanceSegment[]>([])
 
-    // 获取当前正在演出的 Segment (队首)
-    const currentPerformance = computed(() => {
+    // 获取队列头部的 Performance（正在演出的片段）
+    const headPerformance = computed(() => {
         return queue.value.length > 0 ? queue.value[0] : null
     })
 
-    // 获取当前正在接收数据的 Segment (队尾)
-    const activeReceiver = computed(() => {
+    // 获取队列尾部的 Performance（正在接收数据的片段）
+    const tailPerformance = computed(() => {
         if (queue.value.length === 0) return null
         const last = queue.value[queue.value.length - 1]
         if (last.isSegmentComplete) return null
@@ -57,23 +55,21 @@ export const usePerformanceStore = defineStore('performance', () => {
             thinkText: '',
             audioChunks: [],
             isThinkingComplete: false,
-            isTextComplete: false,
-            isAudioComplete: false,
             isSegmentComplete: false
         }
         queue.value.push(newSegment)
     })
 
     wsStore.wsClient.on('text', (msg: any) => {
-        if (activeReceiver.value && activeReceiver.value.characterId === msg.character) {
-             activeReceiver.value.text += (msg.data || '')
-             activeReceiver.value.isThinkingComplete = true // 正文来了，思考肯定结束了
+        if (tailPerformance.value && tailPerformance.value.characterId === msg.character) {
+             tailPerformance.value.text += (msg.data || '')
+             tailPerformance.value.isThinkingComplete = true // 正文来了，思考肯定结束了
         }
     })
     
     wsStore.wsClient.on('thinkText', (msg: any) => {
-        if (activeReceiver.value && activeReceiver.value.characterId === msg.character) {
-             activeReceiver.value.thinkText += (msg.data || '')
+        if (tailPerformance.value && tailPerformance.value.characterId === msg.character) {
+             tailPerformance.value.thinkText += (msg.data || '')
         }
     })
 
@@ -81,9 +77,8 @@ export const usePerformanceStore = defineStore('performance', () => {
     let audioBuffer: string[] = []
 
     wsStore.wsClient.on('audio', (msg: any) => {
-         const receiver = activeReceiver.value
+         const receiver = tailPerformance.value
          if (receiver && (receiver.characterId === msg.character || msg.character === undefined)) {
-             receiver.isThinkingComplete = true // 音频来了，思考肯定结束了
              // 收集分片
              if (msg.data) audioBuffer.push(msg.data)
              
@@ -95,15 +90,12 @@ export const usePerformanceStore = defineStore('performance', () => {
                      is_final: true
                  })
                  audioBuffer = [] // 清空缓冲
-                 
-                 // 注意：这里只是这一句话结束，不是整个 segment 的 isAudioComplete
-                 // isAudioComplete 应该由 'end' 消息来兜底标记
              }
          }
     })
 
     wsStore.wsClient.on('end', (msg: any) => {
-        const receiver = activeReceiver.value
+        const receiver = tailPerformance.value
         if (receiver && (receiver.characterId === msg.character || msg.character === undefined)) {
              // 如果还有残留的音频缓冲（防御性代码），强制合并
              if (audioBuffer.length > 0) {
@@ -114,11 +106,8 @@ export const usePerformanceStore = defineStore('performance', () => {
                   audioBuffer = []
              }
 
-             // 先缓存引用，再一次性修改状态
              receiver.isThinkingComplete = true
-             receiver.isTextComplete = true
-             receiver.isAudioComplete = true
-             // 最后标记整个片段结束，这会导致 activeReceiver 变为 null
+             // 最后标记整个片段结束，这会导致 tailPerformance 变为 null
              receiver.isSegmentComplete = true
         }
     })
@@ -134,8 +123,8 @@ export const usePerformanceStore = defineStore('performance', () => {
 
     return {
         queue,
-        currentPerformance,
-        activeReceiver,
+        headPerformance,
+        tailPerformance,
         popPerformance,
         clearQueue
     }
