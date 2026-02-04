@@ -4,7 +4,6 @@ import { usePerformanceStore } from './performance'
 import { useDialogStore } from './modules/dialog'
 import { useAudioStore } from './modules/audio'
 import { useStageStore } from './modules/stage'
-import { AudioPlayer } from '@/util/AudioPlayer'
 
 // 导演状态枚举
 export enum DirectorState {
@@ -27,7 +26,6 @@ export const useDirectorStore = defineStore('director', () => {
   const textSpeed = ref(25) // 打字机速度：提高到每秒60字左右
   
   // 内部工具与变量
-  const audioPlayer = new AudioPlayer()
   let typeInterval: number | null = null
   let audioIndex = 0
   let isAudioFinished = ref(false)
@@ -97,18 +95,11 @@ export const useDirectorStore = defineStore('director', () => {
     while (currentProcessingId === act.uniqueId) {
       if (audioIndex < act.audioChunks.length) {
         const chunk = act.audioChunks[audioIndex++]
-        
-        audioStore.setSpeakingCharacter(act.characterId)
         try {
-          await audioPlayer.playBase64(chunk.data, (volume) => {
-            // 更新全局口型与角色配置
-            audioStore.setMouthOpen(volume)
-            if (act.characterId) {
-               stageStore.updateCharacterTransform(act.characterId, { mouthOpen: volume })
-            }
-          })
+          // 调用 AudioStore 统一播放接口，处理音频解码、播放及口型同步
+          await audioStore.play(chunk.data, act.characterId)
         } catch (err) {
-          console.warn('音频解码失败:', err)
+          console.warn('音频播放失败:', err)
         }
       } else if (!act.isSegmentComplete) {
         // 缓冲区空了但还没结束，等一等新数据
@@ -119,11 +110,8 @@ export const useDirectorStore = defineStore('director', () => {
       }
     }
 
-    // 播放结束后的清理工作
+    // 播放结束后的状态标记
     if (currentProcessingId === act.uniqueId) {
-      audioStore.setSpeakingCharacter(null)
-      audioStore.setMouthOpen(0)
-      stageStore.updateCharacterTransform(act.characterId, { mouthOpen: 0 })
       isAudioFinished.value = true
       checkFinish()
     }
