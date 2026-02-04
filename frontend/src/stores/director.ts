@@ -44,9 +44,8 @@ export const useDirectorStore = defineStore('director', () => {
     dialogStore.canInput = true
     dialogStore.showCaret = true
     dialogStore.showDialog = true
-    // 进入输入状态时，清理之前的状态和输入框
-    dialogStore.userInput = ''
-    dialogStore.displayedText = ''
+    // 进入输入状态时，清理之前的内容
+    dialogStore.dialogText = ''
     dialogStore.thinkText = ''
     // 将显示的名字改为用户
     dialogStore.currentName = '用户'
@@ -66,7 +65,7 @@ export const useDirectorStore = defineStore('director', () => {
     dialogStore.showDialog = true
     
     // 清理文本显示区，准备输出 AI 内容
-    dialogStore.displayedText = ''
+    dialogStore.dialogText = ''
     dialogStore.thinkText = ''
     
     // 同步角色信息
@@ -93,36 +92,35 @@ export const useDirectorStore = defineStore('director', () => {
 
   // --- 演出逻辑实现 ---
 
-  // 音频播放逻辑：递归播放数组中的音频片
+  // 音频播放逻辑：使用循环代替递归，逻辑更清晰
   const playNextAudio = async (act: any) => {
-    if (currentProcessingId !== act.uniqueId) return
-
-    if (audioIndex < act.audioChunks.length) {
-      const chunk = act.audioChunks[audioIndex]
-      audioIndex++
-      
-      // 设置正在说话的角色
-      audioStore.setSpeakingCharacter(act.characterId)
-      
-      try {
-        await audioPlayer.playBase64(chunk.data, (volume) => {
-          // 更新全局口型与角色配置
-          audioStore.setMouthOpen(volume)
-          if (act.characterId) {
-             stageStore.updateCharacterTransform(act.characterId, { mouthOpen: volume })
-          }
-        })
-      } catch (err) {
-        console.warn('音频解码失败，跳过该片段:', err)
+    while (currentProcessingId === act.uniqueId) {
+      if (audioIndex < act.audioChunks.length) {
+        const chunk = act.audioChunks[audioIndex++]
+        
+        audioStore.setSpeakingCharacter(act.characterId)
+        try {
+          await audioPlayer.playBase64(chunk.data, (volume) => {
+            // 更新全局口型与角色配置
+            audioStore.setMouthOpen(volume)
+            if (act.characterId) {
+               stageStore.updateCharacterTransform(act.characterId, { mouthOpen: volume })
+            }
+          })
+        } catch (err) {
+          console.warn('音频解码失败:', err)
+        }
+      } else if (!act.isSegmentComplete) {
+        // 缓冲区空了但还没结束，等一等新数据
+        await new Promise(resolve => setTimeout(resolve, 100))
+      } else {
+        // 数据已经全部传完且播完
+        break
       }
+    }
 
-      playNextAudio(act)
-    } else {
-      if (!act.isSegmentComplete) {
-        setTimeout(() => playNextAudio(act), 100)
-        return
-      }
-      
+    // 播放结束后的清理工作
+    if (currentProcessingId === act.uniqueId) {
       audioStore.setSpeakingCharacter(null)
       audioStore.setMouthOpen(0)
       stageStore.updateCharacterTransform(act.characterId, { mouthOpen: 0 })
@@ -134,8 +132,6 @@ export const useDirectorStore = defineStore('director', () => {
   // 打字机逻辑实现
   const startTypewriter = (act: any) => {
     if (typeInterval) clearInterval(typeInterval)
-    dialogStore.thinkText = ''
-    dialogStore.displayedText = ''
     
     let thinkIndex = 0
     let textIndex = 0
@@ -150,20 +146,19 @@ export const useDirectorStore = defineStore('director', () => {
       // 阶段 1: 思考文本
       if (isThinkingPhase) {
         if (act.thinkText && thinkIndex < act.thinkText.length) {
-          dialogStore.thinkText += act.thinkText[thinkIndex]
-          thinkIndex++
-        } else if (act.isThinkingComplete || (!act.thinkText && act.text.length > 0)) {
+          dialogStore.thinkText += act.thinkText[thinkIndex++]
+        } else if (act.isThinkingComplete || (!act.thinkText && (act.text?.length || 0) > 0)) {
           // 如果思考结束，或者思考文本为空但正文已经来了，直接进正文
           dialogStore.thinkText = '' 
           isThinkingPhase = false    
+          // 允许同一帧继续处理正文，减少等待
         }
       }
       
       // 阶段 2: 普通文本
       if (!isThinkingPhase) {
           if (act.text && textIndex < act.text.length) {
-              dialogStore.displayedText += act.text[textIndex]
-              textIndex++
+              dialogStore.dialogText += act.text[textIndex++]
           } else if (act.isSegmentComplete && textIndex >= (act.text?.length || 0)) {
               clearInterval(typeInterval!)
               isTextFinished.value = true

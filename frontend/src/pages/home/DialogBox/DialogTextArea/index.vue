@@ -7,14 +7,14 @@
       <textarea 
         :readonly="!dialogStore.canInput" 
         class="dialog-textarea"
-        v-model="dialogStore.userInput" 
+        v-model="dialogStore.dialogText" 
         @keydown.enter.prevent="handleEnter" 
         ref="textareaRef"
       ></textarea>
     </div>
     <CaretSprite 
       :textarea="textareaRef" 
-      :text="dialogStore.userInput" 
+      :text="dialogStore.dialogText" 
       :visible="dialogStore.showCaret" 
       :size="44"
     />
@@ -29,10 +29,9 @@ import CaretSprite from './CaretSprite.vue'
 const dialogStore = useDialogStore()
 const textareaRef = ref()
 
-// 监听 AI 文本展示
-watch(() => dialogStore.displayedText, async (val) => {
+// 监听文本展示，自动滚动到底部
+watch(() => dialogStore.dialogText, async () => {
   if (!dialogStore.canInput) {
-    dialogStore.userInput = val
     await nextTick()
     if (textareaRef.value) {
       textareaRef.value.scrollTop = textareaRef.value.scrollHeight
@@ -42,7 +41,7 @@ watch(() => dialogStore.displayedText, async (val) => {
 
 const handleEnter = (e) => {
   if (!e.shiftKey && dialogStore.canInput) {
-    const text = dialogStore.userInput.trim()
+    const text = dialogStore.dialogText.trim()
     if (text) {
       dialogStore.onInputSubmit(text)
     }
