@@ -214,6 +214,11 @@ class Character:
                 break
             except Exception as e:
                 logging.error(f"[{self.name}] 字符处理循环异常: {e!r}")
+                # 确保异常时也能标记任务完成，避免 join() 永远等待
+                try:
+                    self.message_queue.task_done()
+                except Exception:
+                    pass
 
     async def _process_audio_loop(self):
         """
@@ -258,3 +263,8 @@ class Character:
                 break
             except Exception as e:
                 logging.error(f"[{self.name}] 音频处理循环异常: {e!r}")
+                # 确保异常时也能标记任务完成，避免 join() 永远等待
+                try:
+                    self.sentence_queue.task_done()
+                except Exception:
+                    pass
