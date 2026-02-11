@@ -39,18 +39,16 @@ const { buttonStates } = storeToRefs(appStore)
 
 onMounted(() => {
   vadStore.initVAD()
-  vadStore.onVoiceStart = () => {
-    if (buttonStates.value.video) {
+  vadStore.setCallbacks({
+    onVoiceStart: () => {
       appStore.showDialog = false
       appStore.showSiriWave = true
-    }
-  }
-  vadStore.onVoiceEnd = () => {
-    if (buttonStates.value.video) {
+    },
+    onVoiceEnd: () => {
       appStore.showDialog = true
       appStore.showSiriWave = false
     }
-  }
+  })
   
   // 初始化导演状态
   directorStore.enterInputStandby()

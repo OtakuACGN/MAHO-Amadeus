@@ -30,7 +30,7 @@ class Director:
                     self.script.line_queue.task_done()
                     continue
 
-                logging.info(f"[Director] --- 开始播放演出: {char_name} ---")
+                logging.info(f"[Director] --- 调度角色输出: {char_name} ---")
 
                 # 2. 独占式转发该角色的 output_queue 直到收到 end 信号
                 while True:
@@ -46,14 +46,12 @@ class Director:
 
                     # 3. 如果是 end 信号，表示该角色本次发言结束
                     if item.get("type") == "end":
-                        logging.info(f"[Director] --- 角色 {char_name} 发言结束 ---")
+                        logging.info(f"[Director] --- 角色 {char_name} 输出调度完成 ---")
                         break
                 
                 self.script.line_queue.task_done()
                 
                 # 如果队列空了，说明本轮所有角色的戏都演完了
-                if self.script.line_queue.empty():
-                     await websocket.send_text(json.dumps({"type": "finish"}))
 
             except asyncio.CancelledError:
                 logging.info("[Director] 演出编排器任务已取消")

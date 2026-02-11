@@ -9,5 +9,6 @@ argostranslate
 langdetect
 websockets
 openai
+anthropic
 httpx>=0.25.0
 genie_tts

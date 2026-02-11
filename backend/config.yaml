@@ -72,8 +72,8 @@ characters:
     tts_config:
       character_name: "maho"
       onnx_model_dir: "backend/models/TTS-maho"
-      reference_audio_path: "backend/data/TTS-audio/激动.wav"
-      reference_audio_text: "あら、あなた。"
+      reference_audio_path: "backend/data/TTS-audio/平常.wav"
+      reference_audio_text: "私の名前、ひやじょうまほ。漢字でもローマ字でも誰も読めたためしがないから。"
 
   - name: "mayuri"
     system_prompt: |

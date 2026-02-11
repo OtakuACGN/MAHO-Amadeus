@@ -72,28 +72,30 @@ class WSHandler():
         await websocket.send_text(json.dumps({"type": "end"}))
         logging.info("已中断当前对话并清理所有角色状态")
 
-    def _create_asr_callback(self, websocket, components):
-        """创建 ASR 成功回调，改为主循环中通过导演分发指令"""
-        async def on_asr_success(text):
-            if text:
-                logging.info(f"ASR 识别成功: {text}")
-                available_chars = list(self.characters.keys())
-                # 1. 由导演决定谁该说话
-                instructions = await self.director.dispatch_intent(text, available_chars)
-                # 2. 执行指令
-                for cmd in instructions:
-                    character = self.characters.get(cmd["character"])
-                    if character:
-                        self.current_chat_task = asyncio.create_task(character.chat(cmd["text"]))
-            else:
-                logging.info("ASR 识别结果为空")
-        return on_asr_success
+    async def _dispatch_chat(self, user_text: str):
+        """
+        处理用户输入，由导演决定谁该说话，并并行触发角色的生成任务。
+        这是 chat 和 ASR 的统一入口。
+        """
+        if not user_text:
+            return
+            
+        available_chars = list(self.characters.keys())
+        
+        # 1. 由导演决定谁该说话
+        instructions = await self.director.dispatch_intent(user_text, available_chars)
+        
+        # 2. 并行触发所有相关角色的生成任务
+        for cmd in instructions:
+            character = self.characters.get(cmd["character"])
+            if character:
+                # 这里的 create_task 会立即开始生成，发送给前端的信息会由导演负责
+                self.current_chat_task = asyncio.create_task(character.chat(cmd["text"]))
 
-    async def _handle_audio(self, websocket, components, msg):
+    async def _handle_audio(self, components, msg):
         """处理语音/音频数据流"""
-        # 更新 ASR 回调 (不再绑定特定角色)
-        callback = self._create_asr_callback(websocket, components)
-        components.asr.set_callback(callback)
+        # 设置回调：识别成功后直接走统一的文本处理逻辑
+        components.asr.set_callback(self._dispatch_chat)
             
         try:
             audio_data = msg.get("data")
@@ -136,22 +138,10 @@ class WSHandler():
 
                 if msg_type == "chat":
                     user_text = msg.get("data")
-                    available_chars = list(self.characters.keys())
-                    
-                    # 1. 由导演决定谁该说话
-                    instructions = await self.director.dispatch_intent(user_text, available_chars)
-                    
-                    # 2. 并行触发所有相关角色的生成任务
-                    task_list = []
-                    for cmd in instructions:
-                        character = self.characters.get(cmd["character"])
-                        if character:
-                            # 这里的 create_task 会立即开始生成，发送给前端的信息会由导演负责
-                            t = asyncio.create_task(character.chat(cmd["text"]))
-                            task_list.append(t)
+                    await self._dispatch_chat(user_text)
                 
                 elif msg_type == "audio":
-                    await self._handle_audio(websocket, components, msg)
+                    await self._handle_audio(components, msg)
                 
                 elif msg_type == "interrupt":
                     await self.interrupt_chat(websocket)
