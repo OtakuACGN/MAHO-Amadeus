@@ -4,13 +4,14 @@
 1. **修改配置**：
    修改 `backend/config.yaml` 中的 `llm` 部分：
    ```yaml
-   llm:
-     select: openai_api
-     openai_api:
-       api_key: "你的API_KEY"
-       base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-       model: "qwen-plus"
-       timeout: 60
+   components:
+     llm:
+       select: openai_api
+       openai_api:
+         api_key: "你的API_KEY"
+         base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+         model: "qwen-plus"
+         timeout: 60
    ```
 
 2. **推荐的服务商**：

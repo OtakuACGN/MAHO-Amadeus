@@ -77,26 +77,7 @@ Modelfile 是用于配置和管理大语言模型（LLM）参数的文件，qwen
 
 ### 🔊 TTS
 
-#### 方法一（不推荐，太大了）
-[模型和环境下载](https://www.modelscope.cn/models/bysq2006/maho-tts/files)
-在里面下载GPT-SoVITS-v2pro-20250604.zip
-然后解压到喜欢的位置，
-
-这里面自带了运行时环境./runtime/python.exe
-解压好之后直接
-
-cd 你的解压路径\GPT-SoVITS-v2pro-20250604
-./runtime/python.exe api.py -s SoVITS_weights_v2Pro/maho_e8_s528.pth -g GPT_weights_v2Pro/maho-e15.ckpt
-
-即可启动本地TTS
-
-然后后端配置文件里面
-  gpt_sovits_api:
-    base_url: "http://127.0.0.1:9880"
-    refer_wav_path: "C:\\Users\\19045\\Desktop\\MAHO\\backend\\data\\TTS-audio\\激动.wav"
-refer_wav_path记得改成你的本地路径
-
-#### 方法二 (推荐，轻量化ONNX推理)
+#### 方法一 (推荐，轻量化ONNX推理)
 参考 [GENIETTS接口说明.md](doc/GENIETTS接口说明.md)
 
 ### 🌍 翻译 (Translator)

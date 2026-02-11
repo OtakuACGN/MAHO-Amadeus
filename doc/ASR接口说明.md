@@ -20,13 +20,14 @@
 在 `backend/config.yaml` 中，将 `asr` 部分的 `select` 设置为 `xfyun_asr`，并填入你的凭证：
 
 ```yaml
-asr:
-  select: xfyun_asr  # 设置为 xfyun_asr 启用讯飞语音识别
-  xfyun_asr:
-    app_id: "你的APPID"
-    api_key: "你的APIKey"
-    api_secret: "你的APISecret"
-  none: {}
+components:
+  asr:
+    select: xfyun_asr  # 设置为 xfyun_asr 启用讯飞语音识别
+    xfyun_asr:
+      app_id: "你的APPID"
+      api_key: "你的APIKey"
+      api_secret: "你的APISecret"
+    none: {}
 ```
 
 ### 3. 禁用 ASR
@@ -34,9 +35,10 @@ asr:
 如果你不需要语音输入功能，可以将 `select` 设置为 `none`：
 
 ```yaml
-asr:
-  select: none
-  none: {}
+components:
+  asr:
+    select: none
+    none: {}
 ```
 
 ## 技术细节

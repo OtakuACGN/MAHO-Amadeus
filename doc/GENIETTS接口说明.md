@@ -44,48 +44,48 @@ python main.py
 
 ## 配置方法
 
-在 `backend/config.yaml` 中添加或修改 TTS 配置：
+在 `backend/config.yaml` 中添加或修改 TTS 组件配置：
 
 ```yaml
-tts:
-  select: genie_tts_service  # 可选: gpt_sovits_api 或 genie_tts_service
-  # Genie TTS 配置（轻量化 ONNX 推理）
-  genie_tts_service:
-    character_name: "maho" # 随便起什么名字都行，主要是为了区分不同角色
-    onnx_model_dir: "backend/models/TTS-maho"
-    genie_data_dir: "backend/models/GenieData"
-    language: "ja"                            # ja/zh/en
-    reference_audio_path: "Modeltmp/TTS/WAV-MAHO/vocal_00_02_MAH0002.wav.reformatted.wav_10.wav_0000000000_0000171840.wav"
-    reference_audio_text: "そんなのわかっているわ。何度同じ話を繰り返せば気が済むの?"
-    auto_load: true
-  # GPT-SoVITS 配置（原有配置）
-  gpt_sovits_api:
-    base_url: "http://127.0.0.1:9880"
-    refer_wav_path: "C:\\Users\\19045\\Desktop\\MAHO\\backend\\data\\TTS-audio\\激动.wav"
-    prompt_text: "あら、あなた。"
-    prompt_language: "ja"
-    default_text_language: "ja"
-    speed: 1.2
+components:
+  tts:
+    select: genie_tts_service
+    use_resource_lock: true    # 是否启用 TTS 资源锁（防止多角色并发冲突）
+    # Genie TTS 全局配置（轻量化 ONNX 推理）
+    genie_tts_service:
+      genie_data_dir: "backend/models/GenieData"  # GenieData 依赖目录
+      language: "ja"                                # 默认语言: ja/zh/en
+      auto_load: true
+      # 注意：角色专属的 onnx_model_dir、reference_audio_path 等配置
+      # 已移到 characters 下的各角色的 tts_config 中
 ```
+
+**注意**：从最新版本开始，`character_name`、`onnx_model_dir`、`reference_audio_path`、`reference_audio_text` 等角色专属配置已移到 `characters` 列表中各角色的 `tts_config` 下。详见 [角色配置指南](角色配置指南.md)。
 
 ## 配置说明
 
-### 必需参数
+### 组件级别参数（components.tts.genie_tts_service）
 
-- `character_name`: 角色名称，用于标识不同的语音模型
-- `onnx_model_dir`: ONNX 模型文件所在目录
+#### 必需参数
+
 - `genie_data_dir`: GenieData 依赖项目录
 
-### 可选参数
+#### 可选参数
 
-- `language`: 语言代码，默认 "ja"（日语）
+- `language`: 默认语言代码，默认 "ja"（日语）
   - `ja`: 日语
   - `zh`: 中文
   - `en`: 英语
-  
+- `auto_load`: 是否在初始化时自动加载模型，默认 `true`
+
+### 角色级别参数（characters[].tts_config）
+
+以下参数已移到各角色的 `tts_config` 中：
+
+- `character_name`: 角色名称，用于 TTS 服务内部注册
+- `onnx_model_dir`: ONNX 模型文件所在目录
 - `reference_audio_path`: 参考音频文件路径，用于情感和语调克隆
 - `reference_audio_text`: 参考音频对应的文本内容
-- `auto_load`: 是否在初始化时自动加载模型，默认 `true`
 
 
 ## 优势
