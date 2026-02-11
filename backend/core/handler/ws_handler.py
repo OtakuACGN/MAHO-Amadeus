@@ -21,7 +21,6 @@ class WSHandler():
 
     def __init__(self):
         self.auth_manager = AuthManager()  # 用于验证 WebSocket 消息中的 token
-        self.current_chat_task = None      # 记录当前正在运行的聊天任务
         self.orchestrator_task = None      # 演出编排任务
         self.characters = {}               # 存储当前连接的所有角色实例
         self.director = None               # 导演实例
@@ -50,27 +49,16 @@ class WSHandler():
         return token and self.auth_manager.verify_token(token)
 
     async def interrupt_chat(self, websocket):
-        """
-        中断当前的聊天逻辑：取消角色推理任务，并通知所有角色中断自己的处理
-        """
-        # 清空剧本调度队列 (这是关键，防止后续排队的任务继续播放)
-        if self.director and self.director.script:
-             # asyncio.Queue 没有直接 clear 方法，只能循环 get
-            q = self.director.script.line_queue
-            while not q.empty():
-                try:
-                    q.get_nowait()
-                    q.task_done()
-                except asyncio.QueueEmpty:
-                    break
-
-        # 通知所有角色进行内部中断逻辑 (清空自身的 output_queue)
+        """中断当前对话：取消所有角色任务，清空队列，通知前端"""
+        # 1. 中断所有角色（取消生成任务 + 清空队列）
         for name, character in self.characters.items():
             await character.interrupt()
+            # 从导演台词队列中移除该角色的排队任务
+            await self.director.remove_from_queue(name)
 
-        # 发送结束标签通知前端清理状态
+        # 2. 通知前端清理状态
         await websocket.send_text(json.dumps({"type": "end"}))
-        logging.info("已中断当前对话并清理所有角色状态")
+        logging.info("已中断当前对话")
 
     async def _dispatch_chat(self, user_text: str):
         """
@@ -85,12 +73,15 @@ class WSHandler():
         # 1. 由导演决定谁该说话
         instructions = await self.director.dispatch_intent(user_text, available_chars)
         
-        # 2. 并行触发所有相关角色的生成任务
+        # 2. 生成当前情境上下文（供角色参考，不存入角色历史）
+        situation = self.director.get_situation_context()
+        
+        # 3. 并行触发所有相关角色的生成任务
         for cmd in instructions:
             character = self.characters.get(cmd["character"])
             if character:
-                # 这里的 create_task 会立即开始生成，发送给前端的信息会由导演负责
-                self.current_chat_task = asyncio.create_task(character.chat(cmd["text"]))
+                # 角色自己管理任务生命周期，无需 WSHandler 保存引用
+                asyncio.create_task(character.chat(cmd["text"], extra_context=situation))
 
     async def _handle_audio(self, components, msg):
         """处理语音/音频数据流"""

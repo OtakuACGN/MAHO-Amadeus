@@ -4,6 +4,7 @@ import { usePerformanceStore } from './performance'
 import { useDialogStore } from './modules/dialog'
 import { useAudioStore } from './modules/audio'
 import { useStageStore } from './modules/stage'
+import { useWSStore } from './modules/ws'
 
 // 导演状态枚举
 export enum DirectorState {
@@ -18,6 +19,7 @@ export const useDirectorStore = defineStore('director', () => {
   const dialogStore = useDialogStore()
   const audioStore = useAudioStore()
   const stageStore = useStageStore()
+  const wsStore = useWSStore()
 
   // 状态
   const currentState = ref<DirectorState>(DirectorState.InputStandby)
@@ -186,10 +188,38 @@ export const useDirectorStore = defineStore('director', () => {
   })
 
 
+  /**
+   * 打断当前演出：通知后端停止生成，清空演出队列，回到输入待机状态
+   * 注意：当前正在播放的音频会继续播放完，不会被强制中断
+   */
+  const interrupt = () => {
+    // 1. 通知后端停止生成
+    wsStore.send({ type: 'interrupt' })
+    
+    // 2. 停止打字机效果
+    if (typeInterval) {
+      clearInterval(typeInterval)
+      typeInterval = null
+    }
+    
+    // 3. 清空演出队列（后续待播放的内容被移除）
+    performanceStore.clearQueue()
+    currentProcessingId = null
+    
+    // 4. 重置状态标记
+    isAudioFinished.value = false
+    isTextFinished.value = false
+    audioIndex = 0
+    
+    // 5. 切换到输入待机状态
+    enterInputStandby()
+  }
+
   return {
     currentState,
     textSpeed,
     handleScreenClick,
-    enterInputStandby
+    enterInputStandby,
+    interrupt
   }
 })

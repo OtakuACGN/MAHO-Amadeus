@@ -26,6 +26,8 @@ class Character:
         self.message_queue = asyncio.Queue()  # LLM 原始输出队列
         self.sentence_queue = asyncio.Queue()  # TTS 句子队列
         self.output_queue = asyncio.Queue()   # 处理完毕后的结果输出队列 (供外部消费)
+        
+        self.current_chat_task = None  # 当前正在进行的 chat 任务
 
         self.tasks = []
         if self.components:
@@ -67,25 +69,26 @@ class Character:
         self.tasks = []
 
     async def interrupt(self):
-        """中断当前处理逻辑并清空队列"""
-        # 1. 清空输入队列
-        while not self.message_queue.empty():
+        """中断当前角色的生成任务并清空队列"""
+        # 1. 取消正在进行的 chat 任务
+        if self.current_chat_task and not self.current_chat_task.done():
+            self.current_chat_task.cancel()
             try:
-                self.message_queue.get_nowait()
-                self.message_queue.task_done()
-            except asyncio.QueueEmpty:
-                break
-
-        while not self.sentence_queue.empty():
-            try:
-                self.sentence_queue.get_nowait()
-                self.sentence_queue.task_done()
-            except asyncio.QueueEmpty:
-                break
-
-        # 2. 向输出队列发送一个中断/清理信号（可选）
-        # 这里暂时只清空
-        logging.info(f"[{self.name}] 已中断当前处理并清空队列")
+                await self.current_chat_task
+            except asyncio.CancelledError:
+                pass
+            self.current_chat_task = None
+        
+        # 2. 清空所有队列
+        for q in [self.message_queue, self.sentence_queue, self.output_queue]:
+            while not q.empty():
+                try:
+                    q.get_nowait()
+                    q.task_done()
+                except asyncio.QueueEmpty:
+                    break
+        
+        logging.info(f"[{self.name}] 已中断并清空队列")
 
     def load_memory(self, memory: list):
         """加载历史记忆"""
@@ -103,14 +106,26 @@ class Character:
         """添加助手消息到历史"""
         self.history.append({"role": "assistant", "content": content})
 
-    async def chat(self, user_text: str):
+    async def chat(self, user_text: str, extra_context: str = ""):
         """
         触发角色的推理流程。
         结果会推入 output_queue 中。
+        
+        Args:
+            user_text: 用户输入文本
+            extra_context: 额外上下文（如世界观、其他角色对话摘要等），不会记录到角色历史
         """
         if not self.components:
             logging.error(f"[{self.name}] 无法开启对话：未绑定 Components")
             return
+        
+        # 如果已有任务在运行，先中断
+        if self.current_chat_task and not self.current_chat_task.done():
+            self.current_chat_task.cancel()
+            try:
+                await self.current_chat_task
+            except asyncio.CancelledError:
+                pass
 
         # 提前申请 TTS 资源锁
         await self.components.tts_lock.reserve(self.name)
@@ -122,9 +137,15 @@ class Character:
         # 添加用户历史
         self.add_history_user(user_text)
 
+        # 构造 LLM 输入：系统提示 + 额外上下文 + 角色历史（额外上下文临时，不存储）
+        messages = self.history.copy()
+        if extra_context:
+            # 将 extra_context 作为 system 消息插入到人设之后（第2位）
+            messages.insert(1, {"role": "system", "content": f"[当前情境] {extra_context}"})
+
         full_response = ""
         # 流式调用 LLM
-        async for response in self.components.llm.generate(self.history):
+        async for response in self.components.llm.generate(messages):
             full_response += response
             await self.message_queue.put(response)
 
@@ -137,6 +158,9 @@ class Character:
 
         # 投递结束信号
         await self.output_queue.put({"type": "end", "character": self.name})
+        
+        # 清除当前任务引用
+        self.current_chat_task = None
 
         # 释放TTS资源锁
         await self.components.tts_lock.release(self.name)

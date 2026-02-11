@@ -139,7 +139,7 @@ onMounted(() => {
 
 .Siri-wave {
   position: absolute;
-  bottom: 10vh;
+  bottom: 4vh;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;

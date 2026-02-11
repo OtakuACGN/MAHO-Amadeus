@@ -30,18 +30,6 @@ class Script:
         })
         logging.info(f"[Script] 角色 {character_name} 已加入演出队列")
 
-    def get_public_context(self) -> str:
-        """获取格式化后的公共上下文字符串，供 LLM 参考"""
-        context_lines = []
-        if self.world_view:
-            context_lines.append(f"世界观设置: {self.world_view}")
-        
-        context_lines.append("近期对话记录:")
-        for msg in self.public_history:
-            context_lines.append(f"{msg['role']}: {msg['content']}")
-        
-        return "\n".join(context_lines)
-
     def clear(self):
         """清空公共上下文"""
         self.public_history = []

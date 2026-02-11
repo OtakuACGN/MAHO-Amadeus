@@ -2,12 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useWSStore } from './ws'
 import { useAppStore } from './app'
+import { useDirectorStore } from '../director'
 // @ts-ignore
 import VAD from '@/util/vad'
 
 export const useVADStore = defineStore('vad', () => {
   const wsStore = useWSStore()
   const appStore = useAppStore()
+  const directorStore = useDirectorStore()
   
   const isVADInitialized = ref(false)
   
@@ -114,7 +116,7 @@ export const useVADStore = defineStore('vad', () => {
           if (!appStore.buttonStates.video) return
           
           console.log('VAD: 检测到语音开始')
-          wsStore.send({ type: 'interrupt' })
+          directorStore.interrupt()
           startRecording()
           onVoiceStart.value?.()
         },

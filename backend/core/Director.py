@@ -47,6 +47,13 @@ class Director:
                     # 3. 如果是 end 信号，表示该角色本次发言结束
                     if item.get("type") == "end":
                         logging.info(f"[Director] --- 角色 {char_name} 输出调度完成 ---")
+                        
+                        # 将角色回复记入公共历史（从角色历史里偷最后一条）
+                        if character.history:
+                            last_msg = character.history[-1]
+                            if last_msg.get("role") == "assistant":
+                                self.script.add_message(character.name, last_msg["content"])
+                        
                         break
                 
                 self.script.line_queue.task_done()
@@ -60,53 +67,101 @@ class Director:
                 logging.error(f"[Director] 演出编排器异常: {e}")
                 await asyncio.sleep(1)
 
-    async def get_target_characters(self, user_input: str, character_names: List[str]) -> str:
+    async def remove_from_queue(self, character_name: str):
+        """从台词队列中移除指定角色的待演出任务"""
+        # asyncio.Queue 不支持直接删除，需要临时取出过滤
+        temp_items = []
+        removed = False
+        
+        while not self.script.line_queue.empty():
+            try:
+                item = self.script.line_queue.get_nowait()
+                if item.get("character") == character_name and not removed:
+                    removed = True
+                    self.script.line_queue.task_done()
+                else:
+                    temp_items.append(item)
+            except asyncio.QueueEmpty:
+                break
+        
+        # 把保留的项重新放回队列
+        for item in temp_items:
+            await self.script.line_queue.put(item)
+            self.script.line_queue.task_done()
+        
+        if removed:
+            logging.info(f"[Director] 已将 {character_name} 从演出队列移除")
+
+    async def dispatch_intent(self, user_input: str, character_names: List[str]) -> List[Dict]:
         """
-        根据备选角色列表和用户输入，让 AI 决定哪个角色应该回复，或者返回 'all' 表示广播给所有人。
+        根据用户输入，让 AI 选择需要回复的角色列表，生成分发指令。
+        返回格式: [{"character": "name1", "text": "user_input"}, ...]
         """
+        self.script.add_message("user", user_input)
+        
+        if not character_names:
+            return []
+        
+        # 构建提示词，让 AI 返回 JSON 数组格式
         char_list_str = ", ".join(character_names)
         prompt = (
-            f"你是一个虚拟人物互动系统的导演。你的任务是分析用户的输入，并从给定的备选角色列表中选择出最适合回应的角色，或者如果需要广播给所有人，则返回 'all'。\n"
-            f"你需要直接返回角色名称或 'all'，不要包含任何其他解释文字。\n\n"
-            f"备选角色列表: [{char_list_str}]\n"
-            f"用户输入的提问: \"{user_input}\"\n\n"
-            f"请从列表中选择应当回复的角色名称（只能选择一个），或者返回 'all' 表示广播给所有人："
+            f"你是导演，分析用户输入，从备选角色中选择需要回复的角色。\n"
+            f"备选角色: [{char_list_str}]\n"
+            f"用户输入: \"{user_input}\"\n\n"
+            f"以 JSON 数组格式返回角色名列表，如 ['maho'] 或 ['maho', 'mayuri']。"
         )
         
-        # 调用 LLM，收集异步生成器的完整结果
+        # 调用 LLM 获取角色列表
         response = ""
         async for chunk in self.intent_llm.generate(prompt):
             response += chunk
         
-        # 处理 AI 返回的字符串
-        if not response:
-            return character_names[0] if character_names else "all"
-
-        response = response.strip()
+        # 解析返回的角色列表
+        targets = []
+        if response:
+            try:
+                import json
+                parsed = json.loads(response.strip())
+                if isinstance(parsed, list):
+                    targets = [name for name in parsed if name in character_names]
+            except:
+                # 解析失败，尝试简单匹配
+                targets = [name for name in character_names if name in response]
         
-        if response == "all":
-            return "all"
-        elif response in character_names:
-            return response
-        else:
-            # 如果 AI 没按格式回，保底选第一个
-            return character_names[0] if character_names else "all"
-
-    async def dispatch_intent(self, user_input: str, character_names: List[str]) -> List[Dict]:
-        """
-        根据用户输入，生成分发指令，并直接添加到剧本的台词队列。
-        返回格式: [{"character": "name1", "text": "user_input"}, ...]
-        """
-        target = await self.get_target_characters(user_input, character_names)
+        # 保底选一个
+        if not targets:
+            targets = [character_names[0]]
         
-        instructions = []
-        if target == "all":
-            instructions = [{"character": name, "text": user_input} for name in character_names]
-        else:
-            instructions = [{"character": target, "text": user_input}]
-        
-        # 直接将角色添加到剧本的台词队列
+        # 生成分发指令并注册到台词队列
+        instructions = [{"character": name, "text": user_input} for name in targets]
         for cmd in instructions:
             await self.script.register_line(cmd["character"])
         
         return instructions
+
+    def get_situation_context(self) -> str:
+        """
+        生成当前情境上下文，供角色参考（不存入角色历史）。
+        包含：世界观摘要 + 最近 5 轮公共对话。
+        """
+        parts = []
+        
+        # 世界观（限制长度）
+        world_view = self.script.world_view
+        if world_view:
+            if len(world_view) > 100:
+                world_view = world_view[:100] + "..."
+            parts.append(f"世界观：{world_view}")
+        
+        # 最近 5 轮公共对话
+        recent = self.script.public_history[-5:] if self.script.public_history else []
+        if recent:
+            parts.append("近期对话：")
+            for msg in recent:
+                role = msg.get("role", "unknown")
+                content = msg.get("content", "")[:50]  # 单条限制50字
+                if len(msg.get("content", "")) > 50:
+                    content += "..."
+                parts.append(f"  {role}: {content}")
+        
+        return "\n".join(parts)
